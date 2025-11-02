@@ -1,6 +1,9 @@
 import express from 'express';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
+import connectDB from './infrastructure/config/database';
+import userSchemaDef from './interface/graphql/schema/userSchema';
+import { getUserFromRequest } from './interface/graphql/middleware/authMiddleware';
 import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
@@ -11,18 +14,17 @@ export async function createApp() {
   // Crear httpServer para Apollo Server
   const httpServer = http.createServer(app);
 
+  // Conectar a la base de datos
+  try {
+    await connectDB();
+  } catch (err) {
+    console.warn('MongoDB connection warning:', err);
+  }
+
   // Apollo Server
   const apolloServer = new ApolloServer({
-    typeDefs: `
-      type Query {
-        hello: String
-      }
-    `,
-    resolvers: {
-      Query: {
-        hello: () => 'Hello from GraphQL!',
-      },
-    },
+    typeDefs: userSchemaDef.typeDefs,
+    resolvers: userSchemaDef.resolvers,
   });
 
   await apolloServer.start();
@@ -38,14 +40,19 @@ export async function createApp() {
     '/graphql',
     expressMiddleware(apolloServer, {
       context: async ({ req }) => {
-        // Aquí puedes agregar contexto (usuario, etc.)
-        return { req };
+        // Extraer usuario 
+        const auth = await getUserFromRequest(req as any);
+        return {
+          req,
+          user: auth ? auth.user : null,
+          token: auth ? auth.token : null,
+        };
       },
     })
   );
 
   // Health check
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
