@@ -39,10 +39,11 @@ coverage/
 *.tmp
 *.temp
 .cache/
+/uploads
 
 # OS files
 Thumbs.db
 
-#ao
+#ai
 .ai/
 

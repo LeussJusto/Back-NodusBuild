@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import connectDB from './infrastructure/config/database';
@@ -6,11 +7,12 @@ import userSchemaDef from './interface/graphql/schema/userSchema';
 import projectSchemaDef from './interface/graphql/schema/projectSchema';
 import taskSchemaDef from './interface/graphql/schema/taskSchema';
 import reportSchemaDef from './interface/graphql/schema/reportSchema';
+import documentSchemaDef from './interface/graphql/schema/documentSchema';
 import { getUserFromRequest } from './interface/graphql/middleware/authMiddleware';
 import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { authService, projectService, taskService, reportService } from './infrastructure/container';
+import { authService, projectService, taskService, reportService, documentService } from './infrastructure/container';
 
 export async function createApp() {
   const app = express();
@@ -25,10 +27,10 @@ export async function createApp() {
     console.warn('MongoDB connection warning:', err);
   }
 
-  // Apollo Server (combinar schemas de user, project, task y report)
+  // Apollo Server (combinar schemas de user, project, task, report y document)
   const apolloServer = new ApolloServer({
-    typeDefs: [userSchemaDef.typeDefs, projectSchemaDef.typeDefs, taskSchemaDef.typeDefs, reportSchemaDef.typeDefs],
-    resolvers: [userSchemaDef.resolvers, projectSchemaDef.resolvers, taskSchemaDef.resolvers, reportSchemaDef.resolvers],
+    typeDefs: [userSchemaDef.typeDefs, projectSchemaDef.typeDefs, taskSchemaDef.typeDefs, reportSchemaDef.typeDefs, documentSchemaDef.typeDefs],
+    resolvers: [userSchemaDef.resolvers, projectSchemaDef.resolvers, taskSchemaDef.resolvers, reportSchemaDef.resolvers, documentSchemaDef.resolvers],
   });
 
   await apolloServer.start();
@@ -38,6 +40,9 @@ export async function createApp() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(bodyParser.json());
+
+  // Servir archivos subidos (solo desarrollo/local). En producción, usar CDN o servidor de estáticos.
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // GraphQL endpoint
   app.use(
@@ -54,6 +59,7 @@ export async function createApp() {
           projectService,
           taskService,
           reportService,
+          documentService,
         };
       },
     })

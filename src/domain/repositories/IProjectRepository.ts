@@ -10,7 +10,7 @@ export interface CreateProjectPayload {
   location?: Location;
   metadata?: Metadata;
   owner: string;
-  team: TeamMember[]; // ✅ Service debe proveer el team inicial con owner
+  team: TeamMember[]; 
 }
 
 // Payload para actualizar un proyecto

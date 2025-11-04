@@ -133,4 +133,5 @@ azure-pipelines.yml
 .vercel/
 .netlify/
 .aws-sam/
+/uploads
 
