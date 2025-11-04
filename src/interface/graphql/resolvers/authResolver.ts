@@ -6,6 +6,7 @@ import {
   AuthPayloadGQL,
   UserGQL,
 } from '../types/userTypes';
+import { requireAuth } from '../../../shared/utils/auth';
 
 const authResolver = {
   Query: {
@@ -65,9 +66,10 @@ const authResolver = {
       return true;
     },
 
-    uploadAvatar: async (_: any, { avatarUrl }: any, { user, authService }: any) => {
-      if (!user) throw new Error('Not authenticated');
-      const updated = await authService.uploadAvatar(user.id || user._id, avatarUrl);
+    uploadAvatar: async (_: any, { avatarUrl }: any, ctx: any) => {
+      const { userId } = requireAuth(ctx);
+      const { authService } = ctx;
+      const updated = await authService.uploadAvatar(userId, avatarUrl);
       return updated;
     },
   },

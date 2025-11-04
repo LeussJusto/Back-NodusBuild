@@ -19,8 +19,8 @@ export class AuthService {
   async register(data: CreateUserPayload) {
     ensureValidRegistration(data.email, data.password);
 
-    const existing = await this.userRepo.findByEmail(data.email);
-    if (existing) throw new Error('Email en uso');
+  const existing = await this.userRepo.findByEmail(data.email);
+  if (existing) throw new Error('Email already in use');
 
     const user = await this.userRepo.create(data);
     const token = this.signToken(user.id);
@@ -28,8 +28,8 @@ export class AuthService {
   }
 
   async login(data: { email: string; password: string }) {
-    const user = await this.userRepo.verifyCredentials(data.email, data.password);
-    if (!user) throw new Error('Credenciales inválidas');
+  const user = await this.userRepo.verifyCredentials(data.email, data.password);
+  if (!user) throw new Error('Invalid credentials');
     const token = this.signToken(user.id);
     return { user, token };
   }

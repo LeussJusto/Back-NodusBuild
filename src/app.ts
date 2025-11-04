@@ -3,11 +3,12 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import connectDB from './infrastructure/config/database';
 import userSchemaDef from './interface/graphql/schema/userSchema';
+import projectSchemaDef from './interface/graphql/schema/projectSchema';
 import { getUserFromRequest } from './interface/graphql/middleware/authMiddleware';
 import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { authService } from './infrastructure/container';
+import { authService, projectService } from './infrastructure/container';
 
 export async function createApp() {
   const app = express();
@@ -22,10 +23,10 @@ export async function createApp() {
     console.warn('MongoDB connection warning:', err);
   }
 
-  // Apollo Server
+  // Apollo Server (combinar schemas de user y project)
   const apolloServer = new ApolloServer({
-    typeDefs: userSchemaDef.typeDefs,
-    resolvers: userSchemaDef.resolvers,
+    typeDefs: [userSchemaDef.typeDefs, projectSchemaDef.typeDefs],
+    resolvers: [userSchemaDef.resolvers, projectSchemaDef.resolvers],
   });
 
   await apolloServer.start();
@@ -48,6 +49,7 @@ export async function createApp() {
           user: auth ? auth.user : null,
           token: auth ? auth.token : null,
           authService,
+          projectService,
         };
       },
     })

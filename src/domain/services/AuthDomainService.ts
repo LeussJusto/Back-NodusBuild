@@ -13,14 +13,14 @@ export function ensureValidRegistration(
   const { minPasswordLength = 6, requireDigit = true } = rules;
 
   if (!email || !email.includes('@')) {
-    throw new Error('Email inválido');
+    throw new Error('Invalid email');
   }
 
   if (!password || password.length < minPasswordLength) {
-    throw new Error(`La contraseña debe tener al menos ${minPasswordLength} caracteres`);
+    throw new Error(`Password must be at least ${minPasswordLength} characters`);
   }
 
   if (requireDigit && !/[0-9]/.test(password)) {
-    throw new Error('La contraseña debe contener al menos un número');
+    throw new Error('Password must contain at least one number');
   }
 }
