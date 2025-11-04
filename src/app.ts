@@ -7,6 +7,7 @@ import { getUserFromRequest } from './interface/graphql/middleware/authMiddlewar
 import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import { authService } from './infrastructure/container';
 
 export async function createApp() {
   const app = express();
@@ -46,6 +47,7 @@ export async function createApp() {
           req,
           user: auth ? auth.user : null,
           token: auth ? auth.token : null,
+          authService,
         };
       },
     })
@@ -56,7 +58,7 @@ export async function createApp() {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  return { app, httpServer };
+  return { app, httpServer, apolloServer };
 }
 
 export default express();

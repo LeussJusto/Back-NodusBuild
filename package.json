@@ -10,13 +10,18 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:unit": "jest --testPathPattern=test/unit",
-    "test:integration": "jest --testPathPattern=test/integration",
-    "test:e2e": "jest --testPathPattern=test/e2e",
+    "test:unit": "jest --testPathPatterns=src/test/unit",
+    "test:integration": "jest --testPathPatterns=src/test/integration",
+    "test:e2e": "jest --testPathPatterns=src/test/e2e",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit"
   },
-  "keywords": ["graphql", "typescript", "nodejs", "clean-architecture"],
+  "keywords": [
+    "graphql",
+    "typescript",
+    "nodejs",
+    "clean-architecture"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -31,10 +36,12 @@
     "graphql": "^16.11.0",
     "graphql-tag": "^2.12.6",
     "graphql-voyager": "^2.1.0",
+    "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.2",
     "morgan": "^1.10.1",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

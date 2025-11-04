@@ -9,6 +9,7 @@
 .env.test
 .env.*.local
 .env.*.secret
+.env.docker
 *.env
 *.key
 *.pem

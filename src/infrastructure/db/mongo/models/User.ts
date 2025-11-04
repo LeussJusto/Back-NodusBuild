@@ -33,7 +33,7 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-// Hash password before saving
+// Hash de la contraseña antes de guardar (solo si fue modificada)
 UserSchema.pre('save', async function (next) {
   // @ts-ignore
   if (!this.isModified('password')) return next();
@@ -42,6 +42,7 @@ UserSchema.pre('save', async function (next) {
   next();
 });
 
+// Método para comparar contraseñas durante el login
 UserSchema.methods.comparePassword = async function (candidate: string) {
   return bcrypt.compare(candidate, this.password);
 };

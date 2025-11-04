@@ -1,6 +1,7 @@
 import { gql } from 'graphql-tag';
 import authResolver from '../resolvers/authResolver';
 
+// Definición del esquema GraphQL para usuarios y autenticación
 export const userSchema = gql`
   type Profile {
     firstName: String
@@ -47,6 +48,7 @@ export const userSchema = gql`
   }
 `;
 
+// Definición completa del schema con tipos y resolvers
 export const userSchemaDefinition = {
   typeDefs: userSchema,
   resolvers: authResolver,

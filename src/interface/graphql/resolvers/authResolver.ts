@@ -1,5 +1,5 @@
-import authService from '../../../application/services';
 import { RegisterDTO, LoginDTO } from '../../../application/dto/authDTO';
+import { z } from 'zod';
 import {
   RegisterInputGQL,
   LoginInputGQL,
@@ -9,43 +9,63 @@ import {
 
 const authResolver = {
   Query: {
+    // Devuelve el usuario autenticado actual
     me: async (_: any, __: any, { user }: any): Promise<UserGQL | null> => {
       return (user as any) || null;
     },
   },
 
   Mutation: {
-    register: async (_: any, { input }: { input: RegisterInputGQL }): Promise<AuthPayloadGQL> => {
-      // Map GraphQL input -> application DTO
+    register: async (
+      _: any,
+      { input }: { input: RegisterInputGQL },
+      { authService }: any
+    ): Promise<AuthPayloadGQL> => {
+      const RegisterSchema = z.object({
+        email: z.string().email(),
+        password: z.string().min(5),
+        profile: z
+          .object({
+            firstName: z.string().optional(),
+            lastName: z.string().optional(),
+            phone: z.string().optional(),
+          })
+          .optional(),
+      });
+
+      const parsed = RegisterSchema.parse(input);
       const dto: RegisterDTO = {
-        email: input.email,
-        password: input.password,
-        profile: input.profile
-          ? {
-              firstName: input.profile.firstName ?? undefined,
-              lastName: input.profile.lastName ?? undefined,
-              phone: input.profile.phone ?? undefined,
-            }
-          : undefined,
+        email: parsed.email,
+        password: parsed.password,
+        profile: parsed.profile,
       };
 
       const { user, token } = await authService.register(dto as any);
       return { token, user: user as any } as AuthPayloadGQL;
     },
 
-    login: async (_: any, { email, password }: LoginInputGQL): Promise<AuthPayloadGQL> => {
-      const dto: LoginDTO = { email, password };
+    login: async (
+      _: any,
+      { email, password }: LoginInputGQL,
+      { authService }: any
+    ): Promise<AuthPayloadGQL> => {
+      // Valida credenciales de login
+      const LoginSchema = z.object({
+        email: z.string().email(),
+        password: z.string().min(5),
+      });
+      const { email: em, password: pw } = LoginSchema.parse({ email, password });
+      const dto: LoginDTO = { email: em, password: pw };
       const { user, token } = await authService.login(dto as any);
       return { token, user: user as any } as AuthPayloadGQL;
     },
 
-    logout: async (_: any, __: any, { token }: any) => {
-      // token is injected into context
+    logout: async (_: any, __: any, { token, authService }: any) => {
       await authService.logout(token);
       return true;
     },
 
-    uploadAvatar: async (_: any, { avatarUrl }: any, { user }: any) => {
+    uploadAvatar: async (_: any, { avatarUrl }: any, { user, authService }: any) => {
       if (!user) throw new Error('Not authenticated');
       const updated = await authService.uploadAvatar(user.id || user._id, avatarUrl);
       return updated;

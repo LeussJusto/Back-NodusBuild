@@ -1,3 +1,4 @@
+// Entidad de perfil de usuario
 export interface Profile {
   firstName?: string;
   lastName?: string;
@@ -5,6 +6,7 @@ export interface Profile {
   avatar?: string;
 }
 
+// Entidad principal de usuario
 export interface UserEntity {
   id: string;
   email: string;

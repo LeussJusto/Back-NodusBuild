@@ -2,6 +2,7 @@ import { UserModel, IUser } from '../models/User';
 import { IUserRepository, CreateUserPayload } from '../../../../domain/repositories/IUserRepository';
 import { UserEntity } from '../../../../domain/entities/User';
 
+// Convierte documento de MongoDB a entidad de dominio
 function mapDocToEntity(doc: IUser): UserEntity {
   const id = (doc._id as any).toString();
   return {
@@ -20,8 +21,16 @@ export class UserRepository implements IUserRepository {
       password: payload.password,
       profile: payload.profile || {},
     } as any);
-    const saved = await user.save();
-    return mapDocToEntity(saved);
+    try {
+      const saved = await user.save();
+      return mapDocToEntity(saved);
+    } catch (err: any) {
+      // Maneja error de duplicado de email (índice único)
+      if (err && (err.code === 11000 || err.code === '11000')) {
+        throw new Error('Email ya esta en uso');
+      }
+      throw err;
+    }
   }
 
   async findByEmail(email: string) {
@@ -46,7 +55,7 @@ export class UserRepository implements IUserRepository {
 
   async updateAvatar(userId: string, avatarUrl: string) {
     const doc = await UserModel.findById(userId).exec();
-    if (!doc) throw new Error('User not found');
+    if (!doc) throw new Error('Usuario no encontrado');
     doc.profile = doc.profile || {};
     doc.profile.avatar = avatarUrl;
     const saved = await doc.save();
