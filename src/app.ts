@@ -5,11 +5,12 @@ import connectDB from './infrastructure/config/database';
 import userSchemaDef from './interface/graphql/schema/userSchema';
 import projectSchemaDef from './interface/graphql/schema/projectSchema';
 import taskSchemaDef from './interface/graphql/schema/taskSchema';
+import reportSchemaDef from './interface/graphql/schema/reportSchema';
 import { getUserFromRequest } from './interface/graphql/middleware/authMiddleware';
 import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { authService, projectService, taskService } from './infrastructure/container';
+import { authService, projectService, taskService, reportService } from './infrastructure/container';
 
 export async function createApp() {
   const app = express();
@@ -24,10 +25,10 @@ export async function createApp() {
     console.warn('MongoDB connection warning:', err);
   }
 
-  // Apollo Server (combinar schemas de user, project y task)
+  // Apollo Server (combinar schemas de user, project, task y report)
   const apolloServer = new ApolloServer({
-    typeDefs: [userSchemaDef.typeDefs, projectSchemaDef.typeDefs, taskSchemaDef.typeDefs],
-    resolvers: [userSchemaDef.resolvers, projectSchemaDef.resolvers, taskSchemaDef.resolvers],
+    typeDefs: [userSchemaDef.typeDefs, projectSchemaDef.typeDefs, taskSchemaDef.typeDefs, reportSchemaDef.typeDefs],
+    resolvers: [userSchemaDef.resolvers, projectSchemaDef.resolvers, taskSchemaDef.resolvers, reportSchemaDef.resolvers],
   });
 
   await apolloServer.start();
@@ -52,6 +53,7 @@ export async function createApp() {
           authService,
           projectService,
           taskService,
+          reportService,
         };
       },
     })

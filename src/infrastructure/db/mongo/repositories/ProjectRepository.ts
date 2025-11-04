@@ -5,24 +5,17 @@ import {
   UpdateProjectPayload,
   AddTeamMemberPayload,
 } from '../../../../domain/repositories/IProjectRepository';
-import { ProjectEntity, ProjectRole } from '../../../../domain/entities/Project';
-import { DEFAULT_PERMISSIONS_BY_ROLE } from '../../../../shared/constants/project';
+import { ProjectEntity } from '../../../../domain/entities/Project';
 
 class ProjectRepository implements IProjectRepository {
-  // Crear proyecto (owner se agrega automáticamente como ingeniero_residente)
+  // Crear proyecto - el payload ya debe incluir el team con owner configurado
   async create(payload: CreateProjectPayload): Promise<ProjectEntity> {
     const project = await ProjectModel.create({
       name: payload.name,
       description: payload.description,
       scope: payload.scope,
       owner: payload.owner,
-      team: [
-        {
-          user: payload.owner,
-          role: ProjectRole.INGENIERO_RESIDENTE,
-          permissions: DEFAULT_PERMISSIONS_BY_ROLE['ingeniero_residente'] || [],
-        },
-      ],
+      team: payload.team, 
       timeline: payload.timeline,
       budget: payload.budget,
       location: payload.location,

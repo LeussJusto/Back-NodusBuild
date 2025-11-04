@@ -1,8 +1,9 @@
 import { IProjectRepository } from '../../domain/repositories/IProjectRepository';
 import { IUserRepository } from '../../domain/repositories/IUserRepository';
-import { ProjectEntity } from '../../domain/entities/Project';
+import { ProjectEntity, ProjectRole } from '../../domain/entities/Project';
 import { canAccess, ensureNotRemovingOwner, ensureOwnerCanModify } from '../../domain/services/ProjectDomainService';
 import { CreateProjectDTO, UpdateProjectDTO, AddTeamMemberDTO } from '../dto/projectDTO';
+import { DEFAULT_PERMISSIONS_BY_ROLE } from '../../shared/constants/project';
 
 export class ProjectService {
   private projectRepo: IProjectRepository;
@@ -15,6 +16,9 @@ export class ProjectService {
 
   // Crear proyecto (el usuario autenticado se convierte en owner/ingeniero_residente)
   async createProject(dto: CreateProjectDTO, userId: string): Promise<ProjectEntity> {
+    // ✅ Service decide los permisos iniciales del owner
+    const ownerPermissions = DEFAULT_PERMISSIONS_BY_ROLE['ingeniero_residente'] || [];
+
     const project = await this.projectRepo.create({
       name: dto.name,
       description: dto.description,
@@ -24,6 +28,13 @@ export class ProjectService {
       location: dto.location,
       metadata: dto.metadata,
       owner: userId,
+      team: [
+        {
+          user: userId,
+          role: ProjectRole.INGENIERO_RESIDENTE,
+          permissions: ownerPermissions,
+        },
+      ],
     });
 
     return project;
@@ -88,10 +99,14 @@ export class ProjectService {
 
     if (!memberId) throw new Error('Se requiere userId o email del usuario a agregar');
 
+    // ✅ Service decide los permisos: usa los proporcionados o defaults por rol
+    const roleKey = dto.role.toLowerCase();
+    const permissions = dto.permissions || DEFAULT_PERMISSIONS_BY_ROLE[roleKey] || [];
+
     const updated = await this.projectRepo.addTeamMember(projectId, {
       userId: memberId,
       role: dto.role,
-      permissions: dto.permissions,
+      permissions,
     });
 
     return updated;

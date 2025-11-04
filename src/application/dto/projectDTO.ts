@@ -28,5 +28,5 @@ export interface AddTeamMemberDTO {
   userId?: string;
   email?: string; 
   role: string; 
-  permissions: string[];
+  permissions?: string[]; 
 }

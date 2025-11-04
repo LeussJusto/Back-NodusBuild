@@ -1,4 +1,4 @@
-import { ProjectEntity, Scope, Timeline, Budget, Location, Metadata } from '../entities/Project';
+import { ProjectEntity, Scope, Timeline, Budget, Location, Metadata, TeamMember } from '../entities/Project';
 
 // Payload para crear un nuevo proyecto
 export interface CreateProjectPayload {
@@ -9,7 +9,8 @@ export interface CreateProjectPayload {
   budget?: Budget;
   location?: Location;
   metadata?: Metadata;
-  owner: string; 
+  owner: string;
+  team: TeamMember[]; // ✅ Service debe proveer el team inicial con owner
 }
 
 // Payload para actualizar un proyecto
