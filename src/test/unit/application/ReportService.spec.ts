@@ -2,6 +2,7 @@ import { ReportService } from '../../../application/services/ReportService';
 import { IReportRepository } from '../../../domain/repositories/IReportRepository';
 import { IProjectRepository } from '../../../domain/repositories/IProjectRepository';
 import { ITaskRepository } from '../../../domain/repositories/ITaskRepository';
+import { NotificationService } from '../../../application/services/NotificationService';
 import { ProjectEntity, ProjectRole, ProjectStatus } from '../../../domain/entities/Project';
 import { Report, ReportType, ReportStatus } from '../../../domain/entities/Report';
 import { Task, TaskPriority, TaskStatus } from '../../../domain/entities/Task';
@@ -81,14 +82,24 @@ function makeRepos() {
     update: jest.fn(),
     delete: jest.fn(),
   };
-  return { reportRepo, projectRepo, taskRepo };
+  const notificationService: jest.Mocked<NotificationService> = {
+    createNotification: jest.fn(),
+    getNotificationById: jest.fn(),
+    getNotificationsByUser: jest.fn(),
+    markAsRead: jest.fn(),
+    markAllAsRead: jest.fn(),
+    deleteNotification: jest.fn(),
+    notifyReportApproved: jest.fn(),
+    notifyReportRejected: jest.fn(),
+  } as any;
+  return { reportRepo, projectRepo, taskRepo, notificationService };
 }
 
 describe('Application/ReportService', () => {
   describe('createDaily', () => {
     it('creates daily report for project member', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
       ] });
@@ -114,8 +125,8 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if project not found', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       projectRepo.findById.mockResolvedValue(null);
 
       await expect(svc.createDaily({
@@ -128,8 +139,8 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if user is not project member', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
       ] });
@@ -147,8 +158,8 @@ describe('Application/ReportService', () => {
 
   describe('updateDaily', () => {
     it('updates daily report in draft', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.DAILY, createdBy: 'u2', status: ReportStatus.DRAFT });
       reportRepo.findById.mockResolvedValue(report);
       const updated = { ...report, content: 'Nuevo contenido' };
@@ -166,16 +177,16 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if report not found', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       reportRepo.findById.mockResolvedValue(null);
 
       await expect(svc.updateDaily('r1', { content: 'X' }, 'u2')).rejects.toThrow('Reporte no encontrado');
     });
 
     it('throws if user cannot update daily', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.DAILY, createdBy: 'u2', status: ReportStatus.IN_REVIEW });
       reportRepo.findById.mockResolvedValue(report);
 
@@ -185,8 +196,8 @@ describe('Application/ReportService', () => {
 
   describe('deleteDaily', () => {
     it('deletes daily report in draft', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.DAILY, createdBy: 'u2', status: ReportStatus.DRAFT });
       reportRepo.findById.mockResolvedValue(report);
       reportRepo.delete.mockResolvedValue(true);
@@ -198,16 +209,16 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if report not found', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       reportRepo.findById.mockResolvedValue(null);
 
       await expect(svc.deleteDaily('r1', 'u2')).rejects.toThrow('Reporte no encontrado');
     });
 
     it('throws if user cannot delete daily', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.DAILY, createdBy: 'u2', status: ReportStatus.APPROVED });
       reportRepo.findById.mockResolvedValue(report);
 
@@ -217,8 +228,8 @@ describe('Application/ReportService', () => {
 
   describe('createGeneral', () => {
     it('creates general report for task assignee', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
       ] });
@@ -248,8 +259,8 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if related task not found', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
       ] });
@@ -267,8 +278,8 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if user is not task assignee', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
       ] });
@@ -287,8 +298,8 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if task does not belong to project', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
       ] });
@@ -309,8 +320,8 @@ describe('Application/ReportService', () => {
 
   describe('updateGeneral', () => {
     it('updates general report in draft', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.GENERAL, createdBy: 'u2', status: ReportStatus.DRAFT });
       reportRepo.findById.mockResolvedValue(report);
       const updated = { ...report, content: 'Nuevo contenido' };
@@ -328,16 +339,16 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if report not found', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       reportRepo.findById.mockResolvedValue(null);
 
       await expect(svc.updateGeneral('r1', { content: 'X' }, 'u2')).rejects.toThrow('Reporte no encontrado');
     });
 
     it('throws if user cannot update general', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.GENERAL, createdBy: 'u2', status: ReportStatus.REJECTED });
       reportRepo.findById.mockResolvedValue(report);
 
@@ -347,8 +358,8 @@ describe('Application/ReportService', () => {
 
   describe('deleteGeneral', () => {
     it('deletes general report in draft', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.GENERAL, createdBy: 'u2', status: ReportStatus.DRAFT });
       reportRepo.findById.mockResolvedValue(report);
       reportRepo.delete.mockResolvedValue(true);
@@ -360,16 +371,16 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if report not found', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       reportRepo.findById.mockResolvedValue(null);
 
       await expect(svc.deleteGeneral('r1', 'u2')).rejects.toThrow('Reporte no encontrado');
     });
 
     it('throws if user cannot delete general', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.GENERAL, createdBy: 'u2', status: ReportStatus.REJECTED });
       reportRepo.findById.mockResolvedValue(report);
 
@@ -379,8 +390,8 @@ describe('Application/ReportService', () => {
 
   describe('submitForReview', () => {
     it('submits report for review', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ createdBy: 'u2', status: ReportStatus.DRAFT });
       reportRepo.findById.mockResolvedValue(report);
       const updated = { ...report, status: ReportStatus.IN_REVIEW };
@@ -395,8 +406,8 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if user cannot submit', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ createdBy: 'u2', status: ReportStatus.IN_REVIEW });
       reportRepo.findById.mockResolvedValue(report);
 
@@ -406,8 +417,8 @@ describe('Application/ReportService', () => {
 
   describe('approveReport', () => {
     it('approves report', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.DAILY, status: ReportStatus.IN_REVIEW, project: 'p1' });
       reportRepo.findById.mockResolvedValue(report);
       const proj = makeProject({ team: [
@@ -429,8 +440,8 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if user cannot moderate', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.DAILY, status: ReportStatus.IN_REVIEW, project: 'p1' });
       reportRepo.findById.mockResolvedValue(report);
       const proj = makeProject({ team: [
@@ -445,8 +456,8 @@ describe('Application/ReportService', () => {
 
   describe('rejectReport', () => {
     it('rejects report', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ type: ReportType.DAILY, status: ReportStatus.IN_REVIEW, project: 'p1' });
       reportRepo.findById.mockResolvedValue(report);
       const proj = makeProject({ team: [
@@ -470,8 +481,8 @@ describe('Application/ReportService', () => {
 
   describe('getReportById', () => {
     it('returns report by id', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ project: 'p1' });
       reportRepo.findById.mockResolvedValue(report);
       const proj = makeProject({ team: [
@@ -486,16 +497,16 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if report not found', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       reportRepo.findById.mockResolvedValue(null);
 
       await expect(svc.getReportById('r1', 'u2')).rejects.toThrow('Reporte no encontrado');
     });
 
     it('throws if user not project member', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const report = makeReport({ project: 'p1' });
       reportRepo.findById.mockResolvedValue(report);
       const proj = makeProject({ team: [
@@ -509,8 +520,8 @@ describe('Application/ReportService', () => {
 
   describe('getReportsByProject', () => {
     it('returns reports by project', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
       ] });
@@ -526,8 +537,8 @@ describe('Application/ReportService', () => {
     });
 
     it('throws if user not project member', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
       ] });
@@ -539,8 +550,8 @@ describe('Application/ReportService', () => {
 
   describe('getMyReports', () => {
     it('returns reports by creator', async () => {
-      const { reportRepo, projectRepo, taskRepo } = makeRepos();
-      const svc = new ReportService(reportRepo, projectRepo, taskRepo);
+      const { reportRepo, projectRepo, taskRepo, notificationService } = makeRepos();
+      const svc = new ReportService(reportRepo, projectRepo, taskRepo, notificationService);
       const proj = makeProject({ team: [
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
       ] });
@@ -557,3 +568,4 @@ describe('Application/ReportService', () => {
     });
   });
 });
+

@@ -11,6 +11,7 @@ import {
   DeleteDocumentInput,
   ListByEntityInput,
 } from '../../../application/dto/documentDTO';
+import { DocumentEntityType } from '../../../domain/entities/Document';
 
 const documentResolver = {
   Query: {
@@ -43,8 +44,15 @@ const documentResolver = {
 
       const parsed = ListByEntitySchema.parse({ entityType, entityId });
 
+      // Convertir string a DocumentEntityType enum
+      const entityTypeMap: Record<string, DocumentEntityType> = {
+        'report': DocumentEntityType.REPORT,
+        'task': DocumentEntityType.TASK,
+        'project': DocumentEntityType.PROJECT,
+      };
+
       const input: ListByEntityInput = {
-        entityType: parsed.entityType as 'report' | 'task' | 'project',
+        entityType: entityTypeMap[parsed.entityType],
         entityId: parsed.entityId,
       };
 
@@ -83,6 +91,13 @@ const documentResolver = {
       const buffer = Buffer.concat(chunks);
       const size = buffer.length;
 
+        // Convertir string a DocumentEntityType enum
+        const entityTypeMap: Record<string, DocumentEntityType> = {
+          'report': DocumentEntityType.REPORT,
+          'task': DocumentEntityType.TASK,
+          'project': DocumentEntityType.PROJECT,
+        };
+
       const docInput: UploadDocumentInput = {
         file: {
           originalName: filename,
@@ -92,7 +107,7 @@ const documentResolver = {
         },
         relatedTo:
           parsed.entityType && parsed.entityId
-            ? { entityType: parsed.entityType, entityId: parsed.entityId }
+              ? { entityType: entityTypeMap[parsed.entityType], entityId: parsed.entityId }
             : undefined,
       };
 

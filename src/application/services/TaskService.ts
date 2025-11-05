@@ -7,12 +7,14 @@ import { IProjectRepository } from '../../domain/repositories/IProjectRepository
 import { Task, TaskStatus, TaskPriority } from '../../domain/entities/Task';
 import * as TaskDomainService from '../../domain/services/TaskDomainService';
 import { CreateTaskInput, UpdateTaskInput } from '../dto/taskDTO';
+import { NotificationService } from './NotificationService';
 import { DEFAULT_TASK_STATUS, DEFAULT_TASK_PRIORITY } from '../../shared/constants/task';
 
 export class TaskService {
   constructor(
     private taskRepository: ITaskRepository,
-    private projectRepository: IProjectRepository
+    private projectRepository: IProjectRepository,
+    private notificationService: NotificationService
   ) {}
 
   async createTask(input: CreateTaskInput, userId: string): Promise<Task> {
@@ -40,7 +42,18 @@ export class TaskService {
       ppcWeek: input.ppcWeek,
     };
 
-    return this.taskRepository.create(payload);
+    const task = await this.taskRepository.create(payload);
+
+    // Notificar asignación si corresponde
+    if (task.assignedTo) {
+      await this.notificationService.notifyTaskAssigned(task.assignedTo, userId, '', {
+        projectId: project.id,
+        taskId: task.id,
+        taskTitle: task.title,
+      });
+    }
+
+    return task;
   }
 
   async getTaskById(taskId: string, userId: string): Promise<Task> {
@@ -105,6 +118,24 @@ export class TaskService {
     const updatedTask = await this.taskRepository.update(taskId, payload);
     if (!updatedTask) {
       throw new Error('Error al actualizar la tarea');
+    }
+    // Notificar re-asignación si cambió el asignatario
+    if (input.assignedTo && input.assignedTo !== task.assignedTo && updatedTask.assignedTo) {
+      await this.notificationService.notifyTaskAssigned(updatedTask.assignedTo, userId, '', {
+        projectId: project.id,
+        taskId: updatedTask.id,
+        taskTitle: updatedTask.title,
+      });
+    }
+
+    // Notificar cambio de estado
+    if (input.status && input.status !== task.status && updatedTask.assignedTo) {
+      await this.notificationService.notifyTaskStatusChanged(updatedTask.assignedTo, userId, '', {
+        projectId: project.id,
+        taskId: updatedTask.id,
+        taskTitle: updatedTask.title,
+        status: input.status,
+      });
     }
 
     return updatedTask;

@@ -6,6 +6,8 @@ import {
 import { IProjectRepository } from '../../domain/repositories/IProjectRepository';
 import { ITaskRepository } from '../../domain/repositories/ITaskRepository';
 import { Report, ReportStatus, ReportType } from '../../domain/entities/Report';
+import { ProjectRole } from '../../domain/entities/Project';
+import { NotificationService } from './NotificationService';
 import * as ReportDomainService from '../../domain/services/ReportDomainService';
 import {
   CreateDailyInput,
@@ -20,7 +22,8 @@ export class ReportService {
   constructor(
     private reportRepository: IReportRepository,
     private projectRepository: IProjectRepository,
-    private taskRepository: ITaskRepository
+    private taskRepository: ITaskRepository,
+    private notificationService: NotificationService
   ) {}
   //Daily
   async createDaily(input: CreateDailyInput, userId: string): Promise<Report> {
@@ -170,6 +173,21 @@ export class ReportService {
       throw new Error('Error al enviar el reporte a revisión');
     }
 
+    // Notificar a los ingenieros residentes del proyecto
+    const project = await this.projectRepository.findById(report.project);
+    if (project) {
+      const residentes = project.team.filter((m) => m.role === ProjectRole.INGENIERO_RESIDENTE);
+      await Promise.all(
+        residentes.map((m) =>
+          this.notificationService.notifyReportSubmitted(m.user, userId, '', {
+            projectId: project.id,
+            projectName: project.name,
+            reportId: reportId,
+          })
+        )
+      );
+    }
+
     return updatedReport;
   }
 
@@ -219,6 +237,12 @@ export class ReportService {
       // Futuro: await this.taskRepository.update(report.relatedTasks[0], { status: 'completada' });
     }
 
+    // Notificar al autor del reporte
+    await this.notificationService.notifyReportApproved(report.createdBy, userId, '', {
+      projectId: report.project,
+      reportId,
+    });
+
     return updatedReport;
   }
 
@@ -261,6 +285,12 @@ export class ReportService {
     if (!updatedReport) {
       throw new Error('Error al rechazar el reporte');
     }
+
+    // Notificar al autor del reporte
+    await this.notificationService.notifyReportRejected(report.createdBy, userId, '', {
+      projectId: report.project,
+      reportId,
+    });
 
     return updatedReport;
   }

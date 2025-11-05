@@ -3,7 +3,7 @@ import {
   ALLOWED_MIME_TYPES,
   MAX_FILE_SIZE_BYTES,
   MAX_DOCUMENTS_PER_ENTITY,
-} from '@shared/constants/document';
+} from '../../shared/constants/document';
 
 // Validar que el tipo MIME sea permitido
 export function validateMimeType(mimeType: string): void {

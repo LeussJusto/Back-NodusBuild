@@ -1,4 +1,6 @@
-// DTOs para módulo Document (alineado con estilo de report/project)
+import { DocumentEntityType } from '../../domain/entities/Document';
+
+// DTOs para módulo Document
 export interface UploadFileInput {
   originalName: string; 
   mimeType: string;     
@@ -8,7 +10,7 @@ export interface UploadFileInput {
 }
 
 export interface RelatedEntityInput {
-  entityType: 'report' | 'task' | 'project';
+  entityType: DocumentEntityType;
   entityId: string;
 }
 
@@ -22,6 +24,6 @@ export interface DeleteDocumentInput {
 }
 
 export interface ListByEntityInput {
-  entityType: 'report' | 'task' | 'project';
+  entityType: DocumentEntityType;
   entityId: string;
 }

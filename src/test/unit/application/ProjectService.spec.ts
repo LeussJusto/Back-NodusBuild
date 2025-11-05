@@ -1,6 +1,7 @@
 import ProjectService from '../../../application/services/ProjectService';
 import { IProjectRepository } from '../../../domain/repositories/IProjectRepository';
 import { IUserRepository } from '../../../domain/repositories/IUserRepository';
+import { NotificationService } from '../../../application/services/NotificationService';
 import { ProjectEntity, ProjectRole, ProjectStatus } from '../../../domain/entities/Project';
 import { AddTeamMemberDTO, CreateProjectDTO, UpdateProjectDTO } from '../../../application/dto/projectDTO';
 
@@ -44,13 +45,25 @@ function makeRepos(overrides: Partial<IProjectRepository> = {}, userOverrides: P
     ...userOverrides,
   } as unknown as IUserRepository;
 
-  return { projectRepo, userRepo };
+  const notificationService: jest.Mocked<NotificationService> = {
+    createNotification: jest.fn(),
+    getNotificationById: jest.fn(),
+    getNotificationsByUser: jest.fn(),
+    markAsRead: jest.fn(),
+    markAllAsRead: jest.fn(),
+    deleteNotification: jest.fn(),
+    notifyReportApproved: jest.fn(),
+    notifyReportRejected: jest.fn(),
+    notifyProjectMemberAdded: jest.fn(),
+  } as any;
+
+  return { projectRepo, userRepo, notificationService };
 }
 
 describe('Application/ProjectService', () => {
   it('createProject sets owner and delegates to repository', async () => {
-    const { projectRepo, userRepo } = makeRepos();
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos();
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     const dto: CreateProjectDTO = { name: 'P', description: 'D' } as any;
     const res = await svc.createProject(dto, 'owner1');
     expect((projectRepo.create as jest.Mock).mock.calls[0][0]).toMatchObject({
@@ -60,16 +73,16 @@ describe('Application/ProjectService', () => {
   });
 
   it('getMyProjects returns projects from repository', async () => {
-    const { projectRepo, userRepo } = makeRepos({ findByUser: jest.fn().mockResolvedValue([makeProject({ id: 'p2' })]) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findByUser: jest.fn().mockResolvedValue([makeProject({ id: 'p2' })]) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     const res = await svc.getMyProjects('u1');
     expect(res[0].id).toBe('p2');
     expect(projectRepo.findByUser).toHaveBeenCalledWith('u1');
   });
 
   it('getProjectById allows owner access', async () => {
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(makeProject({ owner: 'u1' })) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(makeProject({ owner: 'u1' })) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     const res = await svc.getProjectById('p1', 'u1');
     expect(res.id).toBe('p1');
   });
@@ -79,23 +92,23 @@ describe('Application/ProjectService', () => {
       { user: 'owner1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
       { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
     ] });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     const res = await svc.getProjectById('p1', 'u2');
     expect(res.id).toBe('p1');
   });
 
   it('getProjectById throws for users without access', async () => {
     const project = makeProject({ owner: 'owner1', team: [{ user: 'owner1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] }] });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     await expect(svc.getProjectById('p1', 'outsider')).rejects.toThrow('No tienes acceso a este proyecto');
   });
 
   it('updateProject only allows owner', async () => {
     const project = makeProject({ owner: 'u1' });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     const dto: UpdateProjectDTO = { name: 'Updated' };
     const res = await svc.updateProject('p1', dto, 'u1');
     expect(res.name).toBe('Updated');
@@ -104,16 +117,16 @@ describe('Application/ProjectService', () => {
 
   it('deleteProject only allows owner', async () => {
     const project = makeProject({ owner: 'u1' });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     await expect(svc.deleteProject('p1', 'u1')).resolves.toBe(true);
     await expect(svc.deleteProject('p1', 'u2')).rejects.toThrow('Solo el creador del proyecto puede realizar esta acción');
   });
 
   it('addTeamMember allows owner with userId', async () => {
     const project = makeProject({ owner: 'u1' });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     const dto: AddTeamMemberDTO = { userId: 'u2', role: 'ingeniero_calidad', permissions: [] } as any;
     const res = await svc.addTeamMember('p1', dto, 'u1');
     expect(projectRepo.addTeamMember).toHaveBeenCalledWith('p1', { userId: 'u2', role: 'ingeniero_calidad', permissions: [] });
@@ -122,8 +135,8 @@ describe('Application/ProjectService', () => {
 
   it('addTeamMember resolves by email', async () => {
     const project = makeProject({ owner: 'u1' });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) }, { findByEmail: jest.fn().mockResolvedValue({ id: 'u3', email: 'x@example.com' } as any) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) }, { findByEmail: jest.fn().mockResolvedValue({ id: 'u3', email: 'x@example.com' } as any) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     const dto: AddTeamMemberDTO = { email: 'x@example.com', role: 'ingeniero_calidad', permissions: [] } as any;
     await svc.addTeamMember('p1', dto, 'u1');
     expect(projectRepo.addTeamMember).toHaveBeenCalledWith('p1', { userId: 'u3', role: 'ingeniero_calidad', permissions: [] });
@@ -131,8 +144,8 @@ describe('Application/ProjectService', () => {
 
   it('addTeamMember throws when not owner', async () => {
     const project = makeProject({ owner: 'u1' });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     await expect(
       svc.addTeamMember('p1', { userId: 'u2', role: 'ingeniero_calidad', permissions: [] } as any, 'uX')
     ).rejects.toThrow('Solo el creador del proyecto puede realizar esta acción');
@@ -140,8 +153,8 @@ describe('Application/ProjectService', () => {
 
   it('addTeamMember throws when neither userId nor email provided', async () => {
     const project = makeProject({ owner: 'u1' });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     await expect(
       svc.addTeamMember('p1', { role: 'ingeniero_calidad', permissions: [] } as any, 'u1')
     ).rejects.toThrow('Se requiere userId o email del usuario a agregar');
@@ -149,10 +162,11 @@ describe('Application/ProjectService', () => {
 
   it('removeTeamMember only allows owner and cannot remove owner', async () => {
     const project = makeProject({ owner: 'u1' });
-    const { projectRepo, userRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
-    const svc = new ProjectService(projectRepo, userRepo);
+    const { projectRepo, userRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(project) });
+    const svc = new ProjectService(projectRepo, userRepo, notificationService);
     await expect(svc.removeTeamMember('p1', 'u2', 'uX')).rejects.toThrow('Solo el creador del proyecto puede realizar esta acción');
     await expect(svc.removeTeamMember('p1', 'u1', 'u1')).rejects.toThrow('No puedes quitar al creador del proyecto');
     await expect(svc.removeTeamMember('p1', 'u2', 'u1')).resolves.toBeTruthy();
   });
 });
+

@@ -128,7 +128,7 @@ describe('Application/DocumentService', () => {
           size: 1024,
           buffer: Buffer.from('test'),
         },
-        relatedTo: { entityType: 'report', entityId: 'report1' },
+        relatedTo: { entityType: DocumentEntityType.REPORT, entityId: 'report1' },
       };
 
       const result = await svc.uploadDocument(input, 'user1');
@@ -158,7 +158,7 @@ describe('Application/DocumentService', () => {
           size: 1024,
           buffer: Buffer.from('test'),
         },
-        relatedTo: { entityType: 'report', entityId: 'report1' },
+        relatedTo: { entityType: DocumentEntityType.REPORT, entityId: 'report1' },
       };
 
       await expect(svc.uploadDocument(input, 'user1')).rejects.toThrow('Reporte no encontrado');
@@ -185,7 +185,7 @@ describe('Application/DocumentService', () => {
           size: 1024,
           buffer: Buffer.from('test'),
         },
-        relatedTo: { entityType: 'report', entityId: 'report1' },
+        relatedTo: { entityType: DocumentEntityType.REPORT, entityId: 'report1' },
       };
 
       await expect(svc.uploadDocument(input, 'user1')).rejects.toThrow(
@@ -220,7 +220,7 @@ describe('Application/DocumentService', () => {
           size: 1024,
           buffer: Buffer.from('test'),
         },
-        relatedTo: { entityType: 'report', entityId: 'report1' },
+        relatedTo: { entityType: DocumentEntityType.REPORT, entityId: 'report1' },
       };
 
       await expect(svc.uploadDocument(input, 'user1')).rejects.toThrow('límite máximo');
@@ -392,10 +392,10 @@ describe('Application/DocumentService', () => {
       const docs = [makeDocument({ id: 'doc1' }), makeDocument({ id: 'doc2' })];
       documentRepo.findByEntity.mockResolvedValue(docs);
 
-      const input: ListByEntityInput = { entityType: 'report', entityId: 'report1' };
+      const input: ListByEntityInput = { entityType: DocumentEntityType.REPORT, entityId: 'report1' };
       const result = await svc.getDocumentsByEntity(input, 'user1');
 
-      expect(documentRepo.findByEntity).toHaveBeenCalledWith('report', 'report1');
+      expect(documentRepo.findByEntity).toHaveBeenCalledWith(DocumentEntityType.REPORT, 'report1');
       expect(result).toHaveLength(2);
       expect(result[0].id).toBe('doc1');
       expect(result[1].id).toBe('doc2');
@@ -407,7 +407,7 @@ describe('Application/DocumentService', () => {
 
       documentRepo.findByEntity.mockResolvedValue([]);
 
-      const input: ListByEntityInput = { entityType: 'report', entityId: 'report1' };
+      const input: ListByEntityInput = { entityType: DocumentEntityType.REPORT, entityId: 'report1' };
       const result = await svc.getDocumentsByEntity(input, 'user1');
 
       expect(result).toHaveLength(0);

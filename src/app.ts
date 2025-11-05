@@ -8,11 +8,12 @@ import projectSchemaDef from './interface/graphql/schema/projectSchema';
 import taskSchemaDef from './interface/graphql/schema/taskSchema';
 import reportSchemaDef from './interface/graphql/schema/reportSchema';
 import documentSchemaDef from './interface/graphql/schema/documentSchema';
+import notificationSchemaDef from './interface/graphql/schema/notificationSchema';
 import { getUserFromRequest } from './interface/graphql/middleware/authMiddleware';
 import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { authService, projectService, taskService, reportService, documentService } from './infrastructure/container';
+import { authService, projectService, taskService, reportService, documentService, notificationService } from './infrastructure/container';
 
 export async function createApp() {
   const app = express();
@@ -27,10 +28,24 @@ export async function createApp() {
     console.warn('MongoDB connection warning:', err);
   }
 
-  // Apollo Server (combinar schemas de user, project, task, report y document)
+  // Apollo Server (combinar schemas de user, project, task, report, document y notification)
   const apolloServer = new ApolloServer({
-    typeDefs: [userSchemaDef.typeDefs, projectSchemaDef.typeDefs, taskSchemaDef.typeDefs, reportSchemaDef.typeDefs, documentSchemaDef.typeDefs],
-    resolvers: [userSchemaDef.resolvers, projectSchemaDef.resolvers, taskSchemaDef.resolvers, reportSchemaDef.resolvers, documentSchemaDef.resolvers],
+    typeDefs: [
+      userSchemaDef.typeDefs,
+      projectSchemaDef.typeDefs,
+      taskSchemaDef.typeDefs,
+      reportSchemaDef.typeDefs,
+      documentSchemaDef.typeDefs,
+      notificationSchemaDef.typeDefs,
+    ],
+    resolvers: [
+      userSchemaDef.resolvers,
+      projectSchemaDef.resolvers,
+      taskSchemaDef.resolvers,
+      reportSchemaDef.resolvers,
+      documentSchemaDef.resolvers,
+      notificationSchemaDef.resolvers,
+    ],
   });
 
   await apolloServer.start();
@@ -60,6 +75,7 @@ export async function createApp() {
           taskService,
           reportService,
           documentService,
+          notificationService,
         };
       },
     })

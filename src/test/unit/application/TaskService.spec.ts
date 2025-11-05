@@ -60,14 +60,36 @@ function makeRepos(
     ...projectOverrides,
   } as unknown as IProjectRepository;
 
-  return { taskRepo, projectRepo };
+  // Mock NotificationService with all required methods
+  const notificationService = {
+    getMyNotifications: jest.fn(),
+    getUnreadCount: jest.fn(),
+    getNotificationById: jest.fn(),
+    markAsRead: jest.fn(),
+    markAllAsRead: jest.fn(),
+    markMultipleAsRead: jest.fn(),
+    deleteNotification: jest.fn(),
+    deleteAllNotifications: jest.fn(),
+    notifyTaskAssigned: jest.fn(),
+    notifyTaskStatusChanged: jest.fn(),
+    notifyProjectEvent: jest.fn(),
+    notifyReportEvent: jest.fn(),
+    notifyDocumentEvent: jest.fn(),
+    notifyGeneral: jest.fn(),
+    notifyReportSubmitted: jest.fn(),
+    notifyReportApproved: jest.fn(),
+    notifyReportRejected: jest.fn(),
+    notifyProjectMemberAdded: jest.fn(),
+  } as unknown as import('../../../application/services/NotificationService').NotificationService;
+
+  return { taskRepo, projectRepo, notificationService };
 }
 
 describe('Application/TaskService', () => {
   describe('createTask', () => {
     it('creates task and sets createdBy to current user', async () => {
-      const { taskRepo, projectRepo } = makeRepos();
-      const svc = new TaskService(taskRepo, projectRepo);
+  const { taskRepo, projectRepo, notificationService } = makeRepos();
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: CreateTaskInput = {
         project: 'p1',
         title: 'Nueva tarea',
@@ -87,8 +109,8 @@ describe('Application/TaskService', () => {
       const project = makeProject({ team: [
         { user: 'owner1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
       ] });
-      const { taskRepo, projectRepo } = makeRepos({}, { findById: jest.fn().mockResolvedValue(project) });
-      const svc = new TaskService(taskRepo, projectRepo);
+    const { taskRepo, projectRepo, notificationService } = makeRepos({}, { findById: jest.fn().mockResolvedValue(project) });
+    const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: CreateTaskInput = {
         project: 'p1',
         title: 'Nueva tarea',
@@ -101,8 +123,9 @@ describe('Application/TaskService', () => {
         { user: 'owner1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
       ] });
-      const { taskRepo, projectRepo } = makeRepos({}, { findById: jest.fn().mockResolvedValue(project) });
-      const svc = new TaskService(taskRepo, projectRepo);
+  // removed duplicate destructuring
+  const { taskRepo, projectRepo, notificationService } = makeRepos({}, { findById: jest.fn().mockResolvedValue(project) });
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: CreateTaskInput = {
         project: 'p1',
         title: 'Nueva tarea',
@@ -112,8 +135,9 @@ describe('Application/TaskService', () => {
     });
 
     it('allows assigning to valid project member', async () => {
-      const { taskRepo, projectRepo } = makeRepos();
-      const svc = new TaskService(taskRepo, projectRepo);
+  // removed duplicate destructuring
+  const { taskRepo, projectRepo, notificationService } = makeRepos();
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: CreateTaskInput = {
         project: 'p1',
         title: 'Nueva tarea',
@@ -129,16 +153,16 @@ describe('Application/TaskService', () => {
   describe('getTaskById', () => {
     it('returns task when user is project member', async () => {
       const task = makeTask({ project: 'p1' as any });
-      const { taskRepo, projectRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
-      const svc = new TaskService(taskRepo, projectRepo);
+      const { taskRepo, projectRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
+      const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const res = await svc.getTaskById('t1', 'u2');
       expect(res.id).toBe('t1');
       expect(projectRepo.findById).toHaveBeenCalledWith('p1');
     });
 
     it('throws when task not found', async () => {
-      const { taskRepo, projectRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(null) });
-      const svc = new TaskService(taskRepo, projectRepo);
+      const { taskRepo, projectRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(null) });
+      const svc = new TaskService(taskRepo, projectRepo, notificationService);
       await expect(svc.getTaskById('tX', 'u1')).rejects.toThrow('Tarea no encontrada');
     });
 
@@ -147,11 +171,11 @@ describe('Application/TaskService', () => {
       const project = makeProject({ team: [
         { user: 'owner1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
       ] });
-      const { taskRepo, projectRepo } = makeRepos(
+      const { taskRepo, projectRepo, notificationService } = makeRepos(
         { findById: jest.fn().mockResolvedValue(task) },
         { findById: jest.fn().mockResolvedValue(project) }
       );
-      const svc = new TaskService(taskRepo, projectRepo);
+      const svc = new TaskService(taskRepo, projectRepo, notificationService);
       await expect(svc.getTaskById('t1', 'uX')).rejects.toThrow('Debes ser miembro del proyecto para ver esta tarea');
     });
   });
@@ -159,8 +183,8 @@ describe('Application/TaskService', () => {
   describe('getTasksByProject', () => {
     it('returns tasks when user is project member', async () => {
       const tasks = [makeTask({ id: 't1' }), makeTask({ id: 't2' })];
-      const { taskRepo, projectRepo } = makeRepos({ findByProject: jest.fn().mockResolvedValue(tasks) });
-      const svc = new TaskService(taskRepo, projectRepo);
+      const { taskRepo, projectRepo, notificationService } = makeRepos({ findByProject: jest.fn().mockResolvedValue(tasks) });
+      const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const res = await svc.getTasksByProject('p1', 'u2');
       expect(res.length).toBe(2);
       expect(taskRepo.findByProject).toHaveBeenCalledWith('p1');
@@ -170,8 +194,8 @@ describe('Application/TaskService', () => {
       const project = makeProject({ team: [
         { user: 'owner1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
       ] });
-      const { taskRepo, projectRepo } = makeRepos({}, { findById: jest.fn().mockResolvedValue(project) });
-      const svc = new TaskService(taskRepo, projectRepo);
+      const { taskRepo, projectRepo, notificationService } = makeRepos({}, { findById: jest.fn().mockResolvedValue(project) });
+      const svc = new TaskService(taskRepo, projectRepo, notificationService);
       await expect(svc.getTasksByProject('p1', 'uX')).rejects.toThrow('Debes ser miembro del proyecto para ver las tareas');
     });
   });
@@ -179,8 +203,8 @@ describe('Application/TaskService', () => {
   describe('updateTask', () => {
     it('allows owner to update any task', async () => {
       const task = makeTask({ createdBy: 'u2', project: 'p1' as any });
-      const { taskRepo, projectRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
-      const svc = new TaskService(taskRepo, projectRepo);
+    const { taskRepo, projectRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: UpdateTaskInput = { title: 'Updated' };
       const res = await svc.updateTask('t1', input, 'owner1');
       expect(res.title).toBe('Updated');
@@ -192,11 +216,11 @@ describe('Application/TaskService', () => {
         { user: 'owner1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
         { user: 'u2', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
       ] });
-      const { taskRepo, projectRepo } = makeRepos(
+      const { taskRepo, projectRepo, notificationService } = makeRepos(
         { findById: jest.fn().mockResolvedValue(task) },
         { findById: jest.fn().mockResolvedValue(project) }
       );
-      const svc = new TaskService(taskRepo, projectRepo);
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: UpdateTaskInput = { title: 'Updated' };
       await svc.updateTask('t1', input, 'u2');
       expect(taskRepo.update).toHaveBeenCalled();
@@ -204,8 +228,8 @@ describe('Application/TaskService', () => {
 
     it('allows task creator to update their task', async () => {
       const task = makeTask({ createdBy: 'u2', project: 'p1' as any });
-      const { taskRepo, projectRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
-      const svc = new TaskService(taskRepo, projectRepo);
+    const { taskRepo, projectRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: UpdateTaskInput = { title: 'Updated' };
       await svc.updateTask('t1', input, 'u2');
       expect(taskRepo.update).toHaveBeenCalled();
@@ -213,8 +237,8 @@ describe('Application/TaskService', () => {
 
     it('allows assigned user to update task', async () => {
       const task = makeTask({ createdBy: 'u1', assignedTo: 'u2' as any, project: 'p1' as any });
-      const { taskRepo, projectRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
-      const svc = new TaskService(taskRepo, projectRepo);
+    const { taskRepo, projectRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: UpdateTaskInput = { title: 'Updated' };
       await svc.updateTask('t1', input, 'u2');
       expect(taskRepo.update).toHaveBeenCalled();
@@ -227,19 +251,19 @@ describe('Application/TaskService', () => {
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
         { user: 'u3', role: ProjectRole.ALMACENERO, permissions: [] },
       ] });
-      const { taskRepo, projectRepo } = makeRepos(
+      const { taskRepo, projectRepo, notificationService } = makeRepos(
         { findById: jest.fn().mockResolvedValue(task) },
         { findById: jest.fn().mockResolvedValue(project) }
       );
-      const svc = new TaskService(taskRepo, projectRepo);
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: UpdateTaskInput = { title: 'Updated' };
       await expect(svc.updateTask('t1', input, 'u3')).rejects.toThrow('No tienes permiso para actualizar esta tarea');
     });
 
     it('throws when assignedTo is not project member', async () => {
       const task = makeTask({ createdBy: 'u2', project: 'p1' as any });
-      const { taskRepo, projectRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
-      const svc = new TaskService(taskRepo, projectRepo);
+    const { taskRepo, projectRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
+  const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const input: UpdateTaskInput = { assignedTo: 'uX' };
       await expect(svc.updateTask('t1', input, 'u2')).rejects.toThrow('El usuario asignado debe ser miembro del proyecto');
     });
@@ -247,9 +271,9 @@ describe('Application/TaskService', () => {
 
   describe('deleteTask', () => {
     it('allows owner to delete any task', async () => {
-      const task = makeTask({ createdBy: 'u2', project: 'p1' as any });
-      const { taskRepo, projectRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
-      const svc = new TaskService(taskRepo, projectRepo);
+    const task = makeTask({ createdBy: 'u2', project: 'p1' as any });
+    const { taskRepo, projectRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
+    const svc = new TaskService(taskRepo, projectRepo, notificationService);
       const res = await svc.deleteTask('t1', 'owner1');
       expect(res).toBe(true);
       expect(taskRepo.delete).toHaveBeenCalledWith('t1');
@@ -261,19 +285,19 @@ describe('Application/TaskService', () => {
         { user: 'owner1', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
         { user: 'u2', role: ProjectRole.INGENIERO_RESIDENTE, permissions: [] },
       ] });
-      const { taskRepo, projectRepo } = makeRepos(
+      const { taskRepo, projectRepo, notificationService } = makeRepos(
         { findById: jest.fn().mockResolvedValue(task) },
         { findById: jest.fn().mockResolvedValue(project) }
       );
-      const svc = new TaskService(taskRepo, projectRepo);
+      const svc = new TaskService(taskRepo, projectRepo, notificationService);
       await svc.deleteTask('t1', 'u2');
       expect(taskRepo.delete).toHaveBeenCalledWith('t1');
     });
 
     it('allows task creator to delete their task', async () => {
-      const task = makeTask({ createdBy: 'u2', project: 'p1' as any });
-      const { taskRepo, projectRepo } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
-      const svc = new TaskService(taskRepo, projectRepo);
+    const task = makeTask({ createdBy: 'u2', project: 'p1' as any });
+    const { taskRepo, projectRepo, notificationService } = makeRepos({ findById: jest.fn().mockResolvedValue(task) });
+    const svc = new TaskService(taskRepo, projectRepo, notificationService);
       await svc.deleteTask('t1', 'u2');
       expect(taskRepo.delete).toHaveBeenCalledWith('t1');
     });
@@ -285,11 +309,11 @@ describe('Application/TaskService', () => {
         { user: 'u2', role: ProjectRole.INGENIERO_CALIDAD, permissions: [] },
         { user: 'u3', role: ProjectRole.ALMACENERO, permissions: [] },
       ] });
-      const { taskRepo, projectRepo } = makeRepos(
+      const { taskRepo, projectRepo, notificationService } = makeRepos(
         { findById: jest.fn().mockResolvedValue(task) },
         { findById: jest.fn().mockResolvedValue(project) }
       );
-      const svc = new TaskService(taskRepo, projectRepo);
+      const svc = new TaskService(taskRepo, projectRepo, notificationService);
       await expect(svc.deleteTask('t1', 'u3')).rejects.toThrow('No tienes permiso para eliminar esta tarea');
     });
   });

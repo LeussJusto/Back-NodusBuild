@@ -4,14 +4,17 @@ import { ProjectEntity, ProjectRole } from '../../domain/entities/Project';
 import { canAccess, ensureNotRemovingOwner, ensureOwnerCanModify } from '../../domain/services/ProjectDomainService';
 import { CreateProjectDTO, UpdateProjectDTO, AddTeamMemberDTO } from '../dto/projectDTO';
 import { DEFAULT_PERMISSIONS_BY_ROLE } from '../../shared/constants/project';
+import { NotificationService } from './NotificationService';
 
 export class ProjectService {
   private projectRepo: IProjectRepository;
   private userRepo: IUserRepository;
+  private notificationService: NotificationService;
 
-  constructor(projectRepo: IProjectRepository, userRepo: IUserRepository) {
+  constructor(projectRepo: IProjectRepository, userRepo: IUserRepository, notificationService: NotificationService) {
     this.projectRepo = projectRepo;
     this.userRepo = userRepo;
+    this.notificationService = notificationService;
   }
 
   // Crear proyecto (el usuario autenticado se convierte en owner/ingeniero_residente)
@@ -107,6 +110,13 @@ export class ProjectService {
       userId: memberId,
       role: dto.role,
       permissions,
+    });
+
+    // Notificar al nuevo miembro del proyecto
+    await this.notificationService.notifyProjectMemberAdded(memberId, requestUserId, '', {
+      projectId: project.id,
+      projectName: project.name,
+      roleName: dto.role,
     });
 
     return updated;
