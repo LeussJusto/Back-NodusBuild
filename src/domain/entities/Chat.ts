@@ -15,14 +15,14 @@ export interface ChatParticipant {
   userId: string;
   role: ParticipantRole;
   joinedAt: Date;
-  lastReadAt?: Date; // marcador de lectura por participante
+  lastReadAt?: Date;
 }
 
 export interface ChatEntity {
   id: string;
   type: ChatType;
-  projectId?: string; // solo para PROJECT
-  title?: string; // para GROUP
+  projectId?: string; 
+  title?: string;
   participants: ChatParticipant[];
   createdAt: Date;
   updatedAt: Date;
