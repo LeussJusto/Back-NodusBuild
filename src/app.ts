@@ -15,6 +15,7 @@ import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { authService, projectService, taskService, reportService, documentService, notificationService, chatService } from './infrastructure/container';
+import { express as voyagerMiddleware } from 'graphql-voyager/middleware';
 
 export async function createApp() {
   const app = express();
@@ -83,6 +84,20 @@ export async function createApp() {
         };
       },
     })
+  );
+
+  // GraphQL Voyager (schema visualizer)
+  app.use(
+    '/voyager',
+    voyagerMiddleware({
+      endpointUrl: '/graphql',
+      displayOptions: {
+        sortByAlphabet: true,
+        showLeafFields: true,
+        skipRelay: false,
+        skipDeprecated: false,
+      },
+    }) as any
   );
 
   // Health check

@@ -1,340 +1,212 @@
-# Back‑Mobile (GraphQL + TypeScript)
+## Introducción
 
-Backend para app móvil con GraphQL (Apollo Server), TypeScript, Clean Architecture, MongoDB (Mongoose) y Redis para revocación de tokens JWT.
+Este repositorio contiene el backend de Nodus Build, una plataforma colaborativa para ingenieros civiles en proyectos de edificación. Su objetivo es ofrecer una aplicación web y una app móvil con un asistente que facilite la coordinación de proyectos, comunicación entre equipos, gestión de documentos y seguimiento de tareas e indicadores.
 
-• GraphQL endpoint: http://localhost:3000/graphql
 
-## Contenidos
+## Arquitectura y tecnologías
 
-- Requisitos
-- Variables de entorno
-- Levantar con Docker Compose
-- Levantar local (sin Docker)
-- Ejecutar tests
-- Módulo Auth
-- Módulo Project
-- Arquitectura
-- Seguridad
+- Lenguaje: Node.js con TypeScript
+- API: GraphQL (Apollo Server)
+- Base de datos: MongoDB (usualmente Atlas, vía MONGO_URI)
+- Cache/Blacklist: Redis (para logout seguro y otros usos)
+- Patrón: Clean Architecture (domain → application → infrastructure → interface)
+- Testing: Jest (unit, integration y e2e)
 
-## Requisitos
+Estructura principal por capas en `src/`:
+- domain: entidades, servicios de dominio y contratos de repositorios
+- application: servicios de aplicación, DTOs, orquestación de casos de uso
+- infrastructure: modelos Mongoose, repositorios, config, storage, DI
+- interface: GraphQL (schema, resolvers, tipos) y middleware
+- shared: utilidades, constantes y errores comunes
+- test: unit, integration y e2e
 
-- Node.js 18+
-- Docker y Docker Compose (para entorno con contenedores)
-- Cuenta de MongoDB Atlas o instancia local de MongoDB (solo necesaria para flows reales/E2E)
+
+## Requisitos previos
+
+- Node.js 18 o superior
+- Una instancia de MongoDB accesible (por ejemplo, MongoDB Atlas) y su cadena de conexión
+- Redis local o en contenedor (opcional pero recomendado para blacklist de tokens)
+- Variables de entorno configuradas (ver sección de variables de entorno)
+
 
 ## Variables de entorno
 
-Usa un archivo .env en la raíz. Para evitar errores con Redis según el entorno:
+Configura un archivo de entorno con, al menos:
+- PORT: puerto HTTP del backend (por defecto 3000)
+- MONGO_URI: cadena de conexión a MongoDB
+- JWT_SECRET y JWT_EXPIRES: firma y expiración de tokens
+- REDIS_URL: URL de Redis cuando aplique
 
-- Local (Node fuera de Docker):
-	- REDIS_URL=redis://localhost:6379
-- Docker Compose (backend y redis en contenedores):
-	- REDIS_URL=redis://redis:6379
+En ejecución con Docker, se usa `.env.docker` para inyectar estas variables al contenedor del backend.
 
-Mínimo recomendado:
 
-```
-PORT=3000
-NODE_ENV=development
+## Puertos y endpoints
 
-# JWT
-JWT_SECRET=replace_this_with_a_secure_secret
-JWT_EXPIRES=1h
+- Backend HTTP: 3000 (configurable vía PORT)
+- Redis: 6379 (si se usa el docker-compose incluido)
+- GraphQL endpoint: `/graphql`
+- Health check: `/health`
+- Voyager (explorador del esquema GraphQL): `/voyager`
+- Archivos estáticos subidos (desarrollo/local): `/uploads`
 
-# Redis
-# Local:     redis://localhost:6379
-# Docker:    redis://redis:6379
-REDIS_URL=redis://localhost:6379
 
-# MongoDB (para flows reales/E2E). Ej: Atlas
-MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
-```
+## Inicio rápido (sin comandos específicos)
 
-Nota: En producción JWT_SECRET es obligatorio.
+1) Instala dependencias del proyecto con el gestor de paquetes de Node.
+2) Configura las variables de entorno necesarias (PORT, MONGO_URI, JWT_SECRET, etc.).
+3) Inicia el servidor en modo desarrollo para recarga en caliente.
+4) Abre el navegador y visita el endpoint de GraphQL para probar consultas y mutaciones.
+5) Opcional: levanta Redis localmente o mediante el archivo de orquestación provisto para soportar blacklist de tokens y futuras funcionalidades de cache.
 
-## Levantar con Docker Compose
+Alternativamente, puedes utilizar el archivo de orquestación incluido para levantar el backend y Redis en contenedores, mapeando el puerto 3000 del host al contenedor.
 
-1) Crea/ajusta .env.docker (este repo ya incluye un ejemplo) y asegúrate de que REDIS_URL sea redis://redis:6379.
-2) docker-compose ya carga .env.docker para el contenedor del backend.
-3) Levanta servicios:
+
+## Modos de ejecución
+
+- Desarrollo: ejecución con recarga en caliente, útil para iterar rápidamente.
+- Producción: compilación previa y ejecución sobre la salida transpilada.
+
+En ambos casos, el servidor expondrá el endpoint GraphQL y el explorador Voyager si está habilitado.
+
+
+## Testing
+
+El proyecto integra pruebas automáticas en tres niveles:
+
+- Unit: validan reglas de negocio y servicios de aplicación de manera aislada.
+- Integration: validan resolvers y servicios en conjunto, normalmente con dependencias simuladas o mínimas.
+- End-to-end (E2E): levantan la app completa y ejercitan flujos reales (por ejemplo, registro, chat directo). Algunas E2E requieren MONGO_URI y, opcionalmente, servicios como Redis; cuando no están disponibles, se omiten de forma segura.
+
+Ejecución general de pruebas: usa el runner de pruebas del proyecto para ejecutar todo el conjunto. También puedes ejecutar únicamente un tipo de pruebas (unit, integration o e2e) usando los scripts definidos.
+
+Ejecución de un test específico: ejecuta el runner indicando la ruta del archivo de prueba (por ejemplo, un spec de e2e o de integración) o filtrando por patrón de nombre.
+
+
+## GraphQL Voyager
+
+Voyager es un explorador visual del esquema GraphQL que permite navegar tipos, relaciones y entradas de forma interactiva. Está disponible en la ruta `/voyager` del backend y utiliza el endpoint `/graphql` para obtener el esquema. Es útil para entender el modelo, descubrir tipos y validar la coherencia del contrato expuesto.
+
+
+## Flujo de trabajo recomendado
+
+1) Definir reglas y entidades en la capa de dominio (domain), sin dependencias de infraestructura.
+2) Implementar casos de uso en application (servicios de aplicación y DTOs), orquestando repositorios y lógica de dominio.
+3) Implementar repositorios e integraciones reales en infrastructure (Mongoose, almacenamiento, DI, config).
+4) Exponer el caso de uso en interface a través de GraphQL (schema y resolvers), validando inputs.
+5) Escribir pruebas:
+	- Unit: para servicios de dominio y de aplicación.
+	- Integration: para resolvers y servicios combinados.
+	- E2E: para validar flujos completos (autenticación, creación de chats, proyectos, etc.).
+6) Ejecutar validaciones locales (tipo, lint y pruebas) antes de crear una rama o abrir un pull request.
+7) En CI, ejecutar unit e integration en cada cambio; E2E se pueden condicionar a la disponibilidad de la infraestructura (por ejemplo, base de datos y Redis) o dejarse en un workflow manual.
+
+
+## Notas adicionales
+
+- Si utilizas Docker, asegúrate de definir correctamente la cadena MONGO_URI en el entorno del contenedor para que el backend se conecte a la base de datos.
+- La ruta `/uploads` sirve archivos solo en desarrollo; para producción se recomienda un servicio de almacenamiento dedicado (CDN u object storage).
+- La blacklist de tokens depende de Redis; si no está disponible, el middleware maneja este escenario de forma tolerante, pero se recomienda activarlo para un logout robusto.
+
+## Guía rápida con comandos (PowerShell / Docker)
+
+### Local (sin Docker)
+
+1) Instalar dependencias
 
 ```powershell
-docker-compose up -d
-```
-
-4) Accede a GraphQL Playground en:
-http://localhost:3000/graphql
-
-Logs:
-
-```powershell
-docker-compose logs -f backend
-docker-compose logs -f redis
-```
-
-Detener:
-
-```powershell
-docker-compose down
-```
-
-## Levantar local (sin Docker)
-
-Usando Redis de Docker y Node local:
-
-```powershell
-# 1) Levanta solo Redis
-docker-compose up -d redis
-
-# 2) Configura .env para local
-#    REDIS_URL=redis://localhost:6379
-#    MONGO_URI=<tu URI de Atlas o local>
-
-# 3) Instala deps y arranca servidor
 npm install
+```
+
+2) Configurar variables de entorno mínimas en la sesión
+
+```powershell
+$env:PORT = "3000"
+$env:MONGO_URI = "mongodb+srv://<user>:<pass>@<cluster>/<db>?retryWrites=true&w=majority"
+$env:JWT_SECRET = "changeme"
+$env:JWT_EXPIRES = "1h"
+# Opcional si usas Redis local o en contenedor
+$env:REDIS_URL = "redis://localhost:6379"
+```
+
+3) Ejecutar en desarrollo (recarga en caliente)
+
+```powershell
 npm run dev
 ```
 
-Servidor en http://localhost:3000/graphql
-
-## Tests
-
-Scripts disponibles (Jest 30):
+4) Compilar y correr en “producción” (salida transpilada)
 
 ```powershell
-# Unit tests (no necesitan Atlas/Redis)
+npm run build
+npm start
+```
+
+Endpoints locales (por defecto):
+- GraphQL: http://localhost:3000/graphql
+- Voyager: http://localhost:3000/voyager
+- Health: http://localhost:3000/health
+
+### Con Docker (backend + Redis)
+
+1) Construir imágenes
+
+```powershell
+docker compose build --no-cache
+```
+
+2) Levantar servicios
+
+```powershell
+docker compose up -d
+```
+
+3) Ver logs del backend
+
+```powershell
+docker compose logs -f backend
+```
+
+4) Apagar y limpiar volúmenes
+
+```powershell
+docker compose down -v
+```
+
+Notas Docker:
+- Define tus variables en `.env.docker` para el servicio `backend` (por ejemplo, `MONGO_URI`, `JWT_SECRET`).
+- El backend queda publicado en el puerto 3000 del host.
+
+### Pruebas (todas, por tipo y por archivo)
+
+1) Ejecutar todo el suite
+
+```powershell
+npm test
+```
+
+2) Ejecutar por tipo
+
+```powershell
 npm run test:unit
-
-# Integration tests (mocks/semimocks)
 npm run test:integration
-
-# E2E tests (requiere MONGO_URI válido y Redis activo)
 npm run test:e2e
 ```
 
-Requisitos E2E:
-- MONGO_URI apuntando a Atlas o una instancia real.
-- Redis en ejecución (docker-compose up -d redis).
-- Los tests E2E validan flujos completos de Auth y Project usando MongoDB real y blacklist en Redis.
+3) Ejecutar un archivo de prueba específico
 
-Troubleshooting:
-- Si al correr E2E ves ENOTFOUND redis, estás corriendo local con REDIS_URL para Docker. Cambia a redis://localhost:6379.
-- Si Jest no termina, asegúrate de que las conexiones se cierran; los tests ya incluyen cleanup de Apollo/Mongo/Redis.
-
-## Módulo Auth
-
-Autenticación completa con JWT y revocación de tokens via Redis.
-
-Funcionalidades:
-- **register**: crea usuario y retorna { token, user }
-- **login**: valida credenciales y retorna { token, user }
-- **me**: retorna el usuario autenticado desde el token
-- **uploadAvatar**: actualiza el avatar del usuario autenticado
-- **logout**: revoca el token actual (se guarda en Redis con TTL hasta exp)
-
-Detalles clave:
-- Los tokens firmados incluyen el id del usuario; expiración configurable (JWT_EXPIRES).
-- La revocación usa una blacklist en Redis con TTL igual al tiempo restante del token.
-- El middleware verifica el JWT y consulta Redis antes de poblar el user en el contexto.
-
-### GraphQL: Mutations
-
-```graphql
-mutation Register($input: RegisterInput!) {
-  register(input: $input) {
-    token
-    user { id email }
-  }
-}
-
-mutation Login($email: String!, $password: String!) {
-  login(email: $email, password: $password) {
-    token
-    user { id email }
-  }
-}
-
-mutation UploadAvatar($u: String!) {
-  uploadAvatar(avatarUrl: $u) {
-    id
-    email
-    profile { avatar }
-  }
-}
-
-mutation { logout }
+```powershell
+npx jest src/test/e2e/chat.e2e.spec.ts --runInBand
 ```
 
-### GraphQL: Query
+4) Filtrar por nombre de test
 
-```graphql
-query { me { id email } }
+```powershell
+npx jest -t "creates a direct chat"
 ```
 
-Headers para llamadas autenticadas:
+5) E2E con dependencia de base de datos (asegura MONGO_URI en la sesión)
 
+```powershell
+$env:MONGO_URI = "mongodb+srv://<user>:<pass>@<cluster>/<db>?retryWrites=true&w=majority"; npm run test:e2e
 ```
-Authorization: Bearer <JWT>
-```
-
-## Módulo Project
-
-Gestión de proyectos con permisos por rol y reglas de acceso claras.
-
-- Cualquiera puede crear un proyecto.
-- El creador se convierte automáticamente en ingeniero_residente (owner) del proyecto.
-- Solo el owner puede actualizar o eliminar el proyecto, y agregar/quitar miembros.
-- Un usuario puede ver un proyecto si es owner o miembro del equipo.
-- Al agregar miembros, se puede indicar userId o email (se resuelve el email a userId).
-
-Roles en español (ProjectRole):
-- ingeniero_residente (owner)
-- ingeniero_produccion
-- ingeniero_calidad
-- ingeniero_especialidades
-- ingeniero_acabados
-- administrador_obra
-- almacenero
-
-Estados (ProjectStatus): planning | active | paused | completed | cancelled
-
-Permisos por rol por defecto:
-- Ver `src/shared/constants/project.ts` (DEFAULT_PERMISSIONS_BY_ROLE). El repositorio usa estos permisos al crear el proyecto para el owner.
-
-Validaciones y utilidades:
-- Autenticación en resolvers con `requireAuth` (shared/utils/auth.ts).
-- Fechas de Timeline: los strings se convierten a Date en el resolver (`parseTimeline` en shared/utils/date.ts).
-- Reglas de dominio (owner, acceso, etc.) en `src/domain/services/ProjectDomainService.ts`.
-
-### GraphQL: Queries
-
-Consultar tus proyectos (owner o miembro):
-
-```graphql
-query MyProjects {
-  myProjects {
-    id
-    name
-    status
-  }
-}
-```
-
-Obtener proyecto por id (requiere acceso):
-
-```graphql
-query Project($id: ID!) {
-  project(id: $id) {
-    id
-    name
-    status
-    team { user { id email } role permissions }
-  }
-}
-```
-
-### GraphQL: Mutations
-
-Crear proyecto (el usuario autenticado será ingeniero_residente):
-
-```graphql
-mutation CreateProject($input: CreateProjectInput!) {
-  createProject(input: $input) {
-    id
-    name
-    status
-  }
-}
-```
-
-Variables:
-
-```json
-{
-  "input": {
-    "name": "Obra 1",
-    "description": "Edificio demo",
-    "timeline": { "startDate": "2025-01-01", "endDate": "2025-06-30" },
-    "budget": { "total": 1000000, "currency": "PEN" }
-  }
-}
-```
-
-Actualizar proyecto (solo owner):
-
-```graphql
-mutation UpdateProject($id: ID!, $input: UpdateProjectInput!) {
-  updateProject(id: $id, input: $input) { id name status }
-}
-```
-
-Eliminar proyecto (solo owner):
-
-```graphql
-mutation DeleteProject($id: ID!) { deleteProject(id: $id) }
-```
-
-Agregar miembro (solo owner; por userId o email):
-
-```graphql
-mutation AddTeamMember($pid: ID!, $input: AddTeamMemberInput!) {
-  addTeamMember(projectId: $pid, input: $input) { id name }
-}
-```
-
-Variables ejemplo por email:
-
-```json
-{
-  "pid": "<projectId>",
-  "input": {
-    "email": "miembro@example.com",
-    "role": "ingeniero_calidad",
-    "permissions": []
-  }
-}
-```
-
-Quitar miembro (solo owner, no puedes quitar al owner):
-
-```graphql
-mutation RemoveTeamMember($pid: ID!, $uid: ID!) {
-  removeTeamMember(projectId: $pid, userId: $uid) { id name }
-}
-```
-
-Headers para llamadas autenticadas:
-
-```
-Authorization: Bearer <JWT>
-```
-
-Troubleshooting:
-- "No autenticado": agrega el header Authorization con tu JWT.
-- "Solo el creador del proyecto puede realizar esta acción": solo el owner puede modificar/borrar/gestionar miembros.
-- "No puedes quitar al creador del proyecto": regla de negocio al remover miembros.
-
-## Arquitectura
-
-Clean Architecture con separación de capas:
-
-- **domain/**: entidades, servicios de dominio (reglas de negocio puras), contratos de repositorio
-- **application/**: casos de uso (AuthService, ProjectService), DTOs
-- **infrastructure/**: config/env, db (Mongoose), cache (Redis), tokenBlacklist, container (DI)
-- **interface/**: GraphQL schema, resolvers, middleware (context + auth)
-- **shared/**: utilidades reutilizables (auth helpers, date parsing, constantes)
-- **test/**: unit, integration, e2e
-
-Puntos clave:
-- El container (`src/infrastructure/container.ts`) compone dependencias y se inyectan por el contexto de Apollo.
-- La blacklist de tokens usa Redis con TTL; en tests o si Redis no está disponible, el código falla de forma segura (fail-open).
-- Los resolvers validan autenticación con `requireAuth` (shared/utils/auth.ts).
-- Las reglas de dominio (owner, acceso) están en servicios de dominio (`ProjectDomainService`, `AuthDomainService`).
-
-## Seguridad
-
-- No publiques credenciales reales en el repositorio.
-- Usa archivos locales (por ejemplo, .env.local) para secretos.
-- Cambia JWT_SECRET en producción y usa HTTPS en despliegues reales.
-- Los tokens JWT se revocan mediante blacklist en Redis con TTL automático.
 
