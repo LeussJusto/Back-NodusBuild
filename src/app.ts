@@ -9,11 +9,12 @@ import taskSchemaDef from './interface/graphql/schema/taskSchema';
 import reportSchemaDef from './interface/graphql/schema/reportSchema';
 import documentSchemaDef from './interface/graphql/schema/documentSchema';
 import notificationSchemaDef from './interface/graphql/schema/notificationSchema';
+import chatSchemaDef from './interface/graphql/schema/chatSchema';
 import { getUserFromRequest } from './interface/graphql/middleware/authMiddleware';
 import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { authService, projectService, taskService, reportService, documentService, notificationService } from './infrastructure/container';
+import { authService, projectService, taskService, reportService, documentService, notificationService, chatService } from './infrastructure/container';
 
 export async function createApp() {
   const app = express();
@@ -28,7 +29,7 @@ export async function createApp() {
     console.warn('MongoDB connection warning:', err);
   }
 
-  // Apollo Server (combinar schemas de user, project, task, report, document y notification)
+  // Apollo Server (combinar schemas de user, project, task, report, document, notification y chat)
   const apolloServer = new ApolloServer({
     typeDefs: [
       userSchemaDef.typeDefs,
@@ -37,6 +38,7 @@ export async function createApp() {
       reportSchemaDef.typeDefs,
       documentSchemaDef.typeDefs,
       notificationSchemaDef.typeDefs,
+      chatSchemaDef.typeDefs,
     ],
     resolvers: [
       userSchemaDef.resolvers,
@@ -45,6 +47,7 @@ export async function createApp() {
       reportSchemaDef.resolvers,
       documentSchemaDef.resolvers,
       notificationSchemaDef.resolvers,
+      chatSchemaDef.resolvers,
     ],
   });
 
@@ -76,6 +79,7 @@ export async function createApp() {
           reportService,
           documentService,
           notificationService,
+          chatService,
         };
       },
     })
