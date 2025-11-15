@@ -30,7 +30,27 @@ const UserSchema = new Schema<IUser>(
     isActive: { type: Boolean, default: true },
     role: { type: String, default: 'user' },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc: any, ret: any) => {
+        ret.id = ret._id ? (ret._id.toString ? ret._id.toString() : ret._id) : ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: (_doc: any, ret: any) => {
+        ret.id = ret._id ? (ret._id.toString ? ret._id.toString() : ret._id) : ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
 );
 
 // Hash de la contraseña antes de guardar (solo si fue modificada)

@@ -48,8 +48,15 @@ class RedisTokenBlacklist implements ITokenBlacklist {
 }
 
 // Factory: intenta usar Redis, fallback a memoria para dev/test
-const testRedis = getRedisClient();
-export const tokenBlacklist: ITokenBlacklist = testRedis
+const redisClient = getRedisClient();
+const useRedis = !!redisClient && (redisClient.status === 'ready');
+if (!useRedis) {
+  // Si Redis no está disponible o no está listo, usamos la implementación en memoria
+  // Esto evita depender de Redis en entornos de test donde la conexión puede fallar
+  // y hace que el comportamiento sea determinístico.
+  // Nota: getRedisClient() ya emite advertencias en caso de error de conexión.
+}
+export const tokenBlacklist: ITokenBlacklist = useRedis
   ? new RedisTokenBlacklist()
   : new MemoryTokenBlacklist();
 

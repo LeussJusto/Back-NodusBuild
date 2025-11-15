@@ -10,6 +10,55 @@ import { requireAuth } from '../../../shared/utils/auth';
 import { parseTimeline } from '../../../shared/utils/date';
 
 const projectResolver = {
+  // Field-level resolvers for Project type
+  Project: {
+    owner: async (parent: any) => {
+      // parent.owner puede ser un string (userId) o un objeto poblado
+      try {
+        const UserRepository = (await import('../../../infrastructure/db/mongo/repositories/UserRepository')).default;
+        if (!parent.owner) return null;
+        if (typeof parent.owner === 'string') {
+          // traer usuario por id
+          return await UserRepository.findById(parent.owner);
+        }
+        // Si ya es un objeto poblado, devolver su forma esperada por GraphQL
+        if (parent.owner.id || parent.owner._id) {
+          return {
+            id: parent.owner.id || (parent.owner._id && parent.owner._id.toString ? parent.owner._id.toString() : parent.owner._id),
+            email: parent.owner.email,
+            profile: parent.owner.profile,
+          };
+        }
+        return parent.owner;
+      } catch (err) {
+        console.warn('[ProjectResolver] owner resolver error:', err);
+        return null;
+      }
+    },
+  },
+  // Field-level resolvers for TeamMember sub-type
+  TeamMember: {
+    user: async (parent: any) => {
+      try {
+        const UserRepository = (await import('../../../infrastructure/db/mongo/repositories/UserRepository')).default;
+        if (!parent.user) return null;
+        if (typeof parent.user === 'string') {
+          return await UserRepository.findById(parent.user);
+        }
+        if (parent.user.id || parent.user._id) {
+          return {
+            id: parent.user.id || (parent.user._id && parent.user._id.toString ? parent.user._id.toString() : parent.user._id),
+            email: parent.user.email,
+            profile: parent.user.profile,
+          };
+        }
+        return parent.user;
+      } catch (err) {
+        console.warn('[ProjectResolver] team member user resolver error:', err);
+        return null;
+      }
+    },
+  },
   Query: {
     // Obtener todos los proyectos donde el usuario participa
     myProjects: async (_: any, __: any, ctx: any): Promise<ProjectGQL[]> => {

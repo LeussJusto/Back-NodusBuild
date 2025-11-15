@@ -142,7 +142,27 @@ const projectSchema = new Schema<IProject>(
     location: locationSchema,
     metadata: metadataSchema,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc: any, ret: any) => {
+        ret.id = ret._id ? (ret._id.toString ? ret._id.toString() : ret._id) : ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: (_doc: any, ret: any) => {
+        ret.id = ret._id ? (ret._id.toString ? ret._id.toString() : ret._id) : ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
 );
 
 // Índices para búsquedas eficientes

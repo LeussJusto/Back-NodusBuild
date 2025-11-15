@@ -87,7 +87,25 @@ const taskSchema = new Schema<ITaskDocument>(
     },
   },
   {
-    timestamps: true, 
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc: any, ret: any) => {
+        ret.id = ret._id ? (ret._id.toString ? ret._id.toString() : ret._id) : ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: (_doc: any, ret: any) => {
+        ret.id = ret._id ? (ret._id.toString ? ret._id.toString() : ret._id) : ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
   }
 );
 

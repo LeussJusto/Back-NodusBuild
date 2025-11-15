@@ -44,7 +44,27 @@ const documentSchema = new Schema<IDocumentMongo>(
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     relatedTo: { type: relatedToSchema, required: false },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc: any, ret: any) => {
+        ret.id = ret._id ? (ret._id.toString ? ret._id.toString() : ret._id) : ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: (_doc: any, ret: any) => {
+        ret.id = ret._id ? (ret._id.toString ? ret._id.toString() : ret._id) : ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
 );
 
 // Índices compuestos útiles

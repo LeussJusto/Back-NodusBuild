@@ -10,17 +10,27 @@ import { ProjectEntity } from '../../../../domain/entities/Project';
 class ProjectRepository implements IProjectRepository {
   // Crear proyecto - el payload ya debe incluir el team con owner configurado
   async create(payload: CreateProjectPayload): Promise<ProjectEntity> {
-    const project = await ProjectModel.create({
+    const created = await ProjectModel.create({
       name: payload.name,
       description: payload.description,
       scope: payload.scope,
       owner: payload.owner,
-      team: payload.team, 
+      team: payload.team,
       timeline: payload.timeline,
       budget: payload.budget,
       location: payload.location,
       metadata: payload.metadata,
     });
+
+    // Recargar el proyecto con populate para que owner y team.user sean objetos
+    const project = await ProjectModel.findById(created._id)
+      .populate('owner', 'email profile')
+      .populate('team.user', 'email profile')
+      .exec();
+
+    if (!project) throw new Error('Error al crear el proyecto');
+
+    // (debug logs removed)
 
     return this.toEntity(project);
   }
@@ -71,6 +81,7 @@ class ProjectRepository implements IProjectRepository {
   async addTeamMember(projectId: string, member: AddTeamMemberPayload): Promise<ProjectEntity> {
     const project = await ProjectModel.findById(projectId);
     if (!project) throw new Error('Proyecto no encontrado');
+    // (debug logs removed)
 
     // Verificar si el usuario ya está en el equipo
     if (project.team.some((tm) => tm.user.toString() === member.userId)) {
@@ -85,11 +96,15 @@ class ProjectRepository implements IProjectRepository {
 
     await project.save();
 
+    // (debug logs removed)
+
     // Recargar con populate
     const updated = await ProjectModel.findById(projectId)
       .populate('owner', 'email profile')
       .populate('team.user', 'email profile')
       .exec();
+
+    // (debug logs removed)
 
     return this.toEntity(updated!);
   }
