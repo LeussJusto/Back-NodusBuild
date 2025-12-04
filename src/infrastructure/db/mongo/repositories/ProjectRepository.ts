@@ -133,6 +133,7 @@ class ProjectRepository implements IProjectRepository {
 
   // Mapear documento Mongoose a entidad de dominio
   private toEntity(doc: any): ProjectEntity {
+    // timeline normalization is handled below when mapping to entity
     return {
       id: doc._id.toString(),
       name: doc.name,
@@ -145,7 +146,14 @@ class ProjectRepository implements IProjectRepository {
         role: tm.role,
         permissions: tm.permissions,
       })),
-      timeline: doc.timeline,
+      // Mapear timeline a un objeto plano para evitar referencias a subdocumentos de Mongoose
+      timeline: doc.timeline
+        ? {
+            startDate: doc.timeline.startDate ? new Date(doc.timeline.startDate) : undefined,
+            endDate: doc.timeline.endDate ? new Date(doc.timeline.endDate) : undefined,
+            estimatedDuration: doc.timeline.estimatedDuration,
+          }
+        : undefined,
       budget: doc.budget,
       location: doc.location,
       metadata: doc.metadata,

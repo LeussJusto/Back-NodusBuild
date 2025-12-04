@@ -16,6 +16,13 @@ export interface TaskGQL {
   priority: string;
   checklist: ChecklistItemGQL[];
   dependencies: TaskGQL[];
+  attachments?: string[];
+  comments?: {
+    id?: string;
+    commenter: any;
+    text: string;
+    createdAt?: string;
+  }[];
   ppcWeek?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -31,6 +38,8 @@ export interface CreateTaskInputGQL {
   priority?: string;
   checklist?: ChecklistItemGQL[];
   dependencies?: string[];
+  attachments?: string[];
+  comments?: { commenter: string; text: string }[];
   ppcWeek?: number;
 }
 
@@ -44,6 +53,8 @@ export interface UpdateTaskInputGQL {
   priority?: string;
   checklist?: ChecklistItemGQL[];
   dependencies?: string[];
+  attachments?: string[];
+  comments?: { commenter: string; text: string }[];
   ppcWeek?: number;
 }
 

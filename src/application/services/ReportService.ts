@@ -41,7 +41,7 @@ export class ReportService {
       createdBy: userId,
       type: ReportType.DAILY,
       date: input.date || new Date(),
-      relatedTasks: [],
+      relatedTasks: input.taskId ? [input.taskId] : [],
       content: input.content,
       checklist: input.checklist || [],
       status: DEFAULT_REPORT_STATUS as ReportStatus,

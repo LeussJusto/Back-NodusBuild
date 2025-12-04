@@ -34,6 +34,8 @@ const typeDefs = gql`
     feedback: String
   }
 
+  scalar Upload
+
   type Report {
     id: ID!
     project: Project!
@@ -52,10 +54,13 @@ const typeDefs = gql`
 
   input CreateDailyInput {
     project: ID!
+    taskId: ID
     date: String
     content: String
     checklist: [ReportChecklistItemInput!]
     attachments: [String!]
+    # For file uploads via GraphQL multipart spec
+    attachmentsFiles: [Upload]
   }
 
   input CreateGeneralInput {
@@ -65,6 +70,8 @@ const typeDefs = gql`
     content: String
     checklist: [ReportChecklistItemInput!]
     attachments: [String!]
+    # For file uploads via GraphQL multipart spec
+    attachmentsFiles: [Upload]
   }
 
   input UpdateReportInput {
@@ -72,6 +79,7 @@ const typeDefs = gql`
     content: String
     checklist: [ReportChecklistItemInput!]
     attachments: [String!]
+    attachmentsFiles: [Upload]
   }
 
   input ApproveReportInput {

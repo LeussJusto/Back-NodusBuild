@@ -17,6 +17,8 @@ export interface CreateTaskInput {
   priority?: TaskPriority;
   checklist?: ChecklistItemInput[];
   dependencies?: string[];
+  attachments?: string[];
+  comments?: { commenter: string; text: string }[];
   ppcWeek?: number;
 }
 // DTO para actualizar una tarea
@@ -30,5 +32,7 @@ export interface UpdateTaskInput {
   priority?: TaskPriority;
   checklist?: ChecklistItemInput[];
   dependencies?: string[];
+  attachments?: string[];
+  comments?: { commenter: string; text: string }[];
   ppcWeek?: number;
 }

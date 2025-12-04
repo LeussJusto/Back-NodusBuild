@@ -14,6 +14,7 @@ export interface ITaskDocument extends Document {
   priority: TaskPriority;
   checklist: ChecklistItem[];
   dependencies: mongoose.Types.ObjectId[];
+  comments: mongoose.Types.DocumentArray<any>;
   ppcWeek?: number;
   createdAt: Date;
   updatedAt: Date;
@@ -25,6 +26,15 @@ const checklistItemSchema = new Schema<ChecklistItem>(
     completed: { type: Boolean, default: false },
   },
   { _id: false } 
+);
+
+// Subdocumento: comentario
+const commentSchema = new Schema(
+  {
+    commenter: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    text: { type: String, required: true, trim: true },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } }
 );
 
 // Task schema
@@ -74,6 +84,14 @@ const taskSchema = new Schema<ITaskDocument>(
     },
     checklist: {
       type: [checklistItemSchema],
+      default: [],
+    },
+    attachments: {
+      type: [String],
+      default: [],
+    },
+    comments: {
+      type: [commentSchema],
       default: [],
     },
     dependencies: {

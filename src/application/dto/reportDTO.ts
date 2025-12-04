@@ -6,6 +6,7 @@ export type ReportChecklistItemInput = ReportChecklistItem;
 // DTO para crear un reporte Daily
 export interface CreateDailyInput {
   project: string;
+  taskId?: string;
   date?: Date; 
   content?: string;
   checklist?: ReportChecklistItemInput[];

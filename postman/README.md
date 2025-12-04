@@ -53,10 +53,7 @@ Flujo recomendado (mutations) — pasos y ejemplos
 - GraphQL mutation: `createProject`
 - Body (JSON):
 ```json
-    {
-    "query": "mutation CreateProject($input: CreateProjectInput!){ createProject(input: $input) { id name description owner { id email } createdAt } }",
-    "variables": { "input": { "name": "Proyecto de prueba", "description": "Creado via Postman" } }
-    }
+o 
 ```
 - Resultado esperado: `data.createProject` con `owner { id email }` no-null.
 

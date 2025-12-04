@@ -6,12 +6,19 @@ import DocumentRepository from './db/mongo/repositories/DocumentRepository';
 import NotificationRepository from './db/mongo/repositories/NotificationRepository';
 import ChatRepository from './db/mongo/repositories/ChatRepository';
 import AuthService from '../application/services/authService';
+import EventRepository from './db/mongo/repositories/EventRepository';
+import { EventService } from '../application/services/EventService';
+import IncidentRepository from './db/mongo/repositories/IncidentRepository';
+import IncidentService from '../application/services/IncidentService';
 import ProjectService from '../application/services/ProjectService';
 import { TaskService } from '../application/services/TaskService';
 import { ReportService } from '../application/services/ReportService';
 import { DocumentService } from '../application/services/DocumentService';
 import { NotificationService } from '../application/services/NotificationService';
 import { ChatService } from '../application/services/ChatService';
+// Message repository/service
+import MessageRepository from './db/mongo/repositories/MessageRepository';
+import MessageService from '../application/services/MessageService';
 import LocalFileStorageService from './storage/LocalFileStorageService';
 
 // Inicializa el servicio de autenticación con el repositorio de MongoDB
@@ -32,10 +39,20 @@ export const projectService = new ProjectService(ProjectRepository, UserReposito
 // Inicializa el servicio de tareas con los repositorios necesarios
 export const taskService = new TaskService(TaskRepository, ProjectRepository, notificationService);
 
+// Inicializa el servicio de eventos
+export const eventService = new EventService(EventRepository, projectService);
+
+// Inicializa el servicio de incidencias
+export const incidentService = new IncidentService(IncidentRepository, projectService);
+
 // Inicializa el servicio de reportes con los repositorios necesarios
 export const reportService = new ReportService(ReportRepository, ProjectRepository, TaskRepository, notificationService);
 
 // Inicializa el servicio de chat con los repositorios necesarios
 export const chatService = new ChatService(ChatRepository, ProjectRepository);
+
+// Inicializa el servicio de mensajes
+// Inicializa el servicio de mensajes
+export const messageService = new MessageService(MessageRepository);
 
 export default authService;

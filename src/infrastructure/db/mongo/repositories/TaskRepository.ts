@@ -20,6 +20,7 @@ class TaskRepository implements ITaskRepository {
       .populate('assignedTo', 'email profile')
       .populate('createdBy', 'email profile')
       .populate('dependencies', 'title status')
+      .populate('comments.commenter', 'email profile')
       .exec();
 
     return task ? this.mapToEntity(task) : null;
@@ -31,6 +32,7 @@ class TaskRepository implements ITaskRepository {
       .populate('assignedTo', 'email profile')
       .populate('createdBy', 'email profile')
       .populate('dependencies', 'title status')
+      .populate('comments.commenter', 'email profile')
       .sort({ createdAt: -1 })
       .exec();
 
@@ -48,6 +50,7 @@ class TaskRepository implements ITaskRepository {
       .populate('assignedTo', 'email profile')
       .populate('createdBy', 'email profile')
       .populate('dependencies', 'title status')
+      .populate('comments.commenter', 'email profile')
       .exec();
 
     return updatedTask ? this.mapToEntity(updatedTask) : null;
@@ -57,6 +60,78 @@ class TaskRepository implements ITaskRepository {
   async delete(id: string): Promise<boolean> {
     const result = await TaskModel.findByIdAndDelete(id).exec();
     return result !== null;
+  }
+  
+  // Agregar comentario como subdocumento
+  async addComment(id: string, commenter: string, text: string): Promise<Task | null> {
+    const updated = await TaskModel.findByIdAndUpdate(
+      id,
+      { $push: { comments: { commenter, text } } },
+      { new: true }
+    )
+      .populate('project', 'name')
+      .populate('assignedTo', 'email profile')
+      .populate('createdBy', 'email profile')
+      .populate('dependencies', 'title status')
+      .populate('comments.commenter', 'email profile')
+      .exec();
+
+    return updated ? this.mapToEntity(updated) : null;
+  }
+
+  // (comment state removed: only edit/delete allowed)
+
+  // Agregar attachment (url) al arreglo
+  async addAttachment(id: string, url: string): Promise<Task | null> {
+    const updated = await TaskModel.findByIdAndUpdate(
+      id,
+      { $push: { attachments: url } },
+      { new: true }
+    )
+      .populate('project', 'name')
+      .populate('assignedTo', 'email profile')
+      .populate('createdBy', 'email profile')
+      .populate('dependencies', 'title status')
+      .populate('comments.commenter', 'email profile')
+      .exec();
+
+    return updated ? this.mapToEntity(updated) : null;
+  }
+
+  // Editar el texto de un comentario
+  async editComment(id: string, commentId: string, text: string): Promise<Task | null> {
+    const taskDoc = await TaskModel.findById(id).exec();
+    if (!taskDoc) return null;
+    const comment = taskDoc.comments.id(commentId as any);
+    if (!comment) return null;
+    comment.set({ text });
+    await taskDoc.save();
+    const updated = await TaskModel.findById(id)
+      .populate('project', 'name')
+      .populate('assignedTo', 'email profile')
+      .populate('createdBy', 'email profile')
+      .populate('dependencies', 'title status')
+      .populate('comments.commenter', 'email profile')
+      .exec();
+    return updated ? this.mapToEntity(updated) : null;
+  }
+
+  // Eliminar un comentario
+  async deleteComment(id: string, commentId: string): Promise<Task | null> {
+    // Use $pull to remove the subdocument by id to avoid relying on subdocument methods
+    const updated = await TaskModel.findByIdAndUpdate(
+      id,
+      { $pull: { comments: { _id: commentId } } },
+      { new: true }
+    )
+      .populate('project', 'name')
+      .populate('assignedTo', 'email profile')
+      .populate('createdBy', 'email profile')
+      .populate('dependencies', 'title status')
+      .populate('comments.commenter', 'email profile')
+      .exec();
+
+    return updated ? this.mapToEntity(updated) : null;
   }
   //Mapea el documento de Mongoose a la entidad de dominio
   private mapToEntity(doc: any): Task {
@@ -75,6 +150,13 @@ class TaskRepository implements ITaskRepository {
       dependencies: doc.dependencies?.map((dep: any) => 
         dep?._id?.toString() || dep?.toString()
       ) || [],
+      attachments: doc.attachments || [],
+      comments: doc.comments?.map((c: any) => ({
+        id: c._id ? (c._id.toString ? c._id.toString() : c._id) : undefined,
+        commenter: c.commenter?._id?.toString() || c.commenter?.toString(),
+        text: c.text,
+        createdAt: c.createdAt,
+      })) || [],
       ppcWeek: doc.ppcWeek,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,

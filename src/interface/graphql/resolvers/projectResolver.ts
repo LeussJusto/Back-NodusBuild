@@ -9,6 +9,95 @@ import { CreateProjectDTO, UpdateProjectDTO, AddTeamMemberDTO } from '../../../a
 import { requireAuth } from '../../../shared/utils/auth';
 import { parseTimeline } from '../../../shared/utils/date';
 
+// Convierte Date / número (ms) / string numérico a ISO string, o devuelve null
+function toISOStringIfDateOrTimestamp(v: any): string | null {
+  if (v === undefined || v === null) return null;
+
+  // Date object
+  if (v instanceof Date) {
+    const t = v.getTime();
+    if (!isNaN(t)) return v.toISOString();
+    return null;
+  }
+
+  // If it's already a number (ms)
+  if (typeof v === 'number' && isFinite(v)) {
+    const d = new Date(v);
+    if (!isNaN(d.getTime())) return d.toISOString();
+    return null;
+  }
+
+  // If it's an object (BSON/Extended JSON from Mongo, Mongoose doc wrappers, etc.)
+  if (typeof v === 'object') {
+    try {
+      // Common Mongo extended JSON: { $date: 123456789 } or { $date: "2020-..." }
+      if ('$date' in v) return toISOStringIfDateOrTimestamp((v as any).$date);
+      // Some representations use $numberLong for epoch millis as string
+      if ('$numberLong' in v) return toISOStringIfDateOrTimestamp((v as any).$numberLong);
+      // Some drivers wrap date in { value: ... } or similar
+      if ('value' in v) return toISOStringIfDateOrTimestamp((v as any).value);
+      // Objects from BSON may implement toISOString or toJSON
+      if (typeof (v as any).toISOString === 'function') {
+        const iso = (v as any).toISOString();
+        if (iso) return iso;
+      }
+      if (typeof (v as any).toJSON === 'function') {
+        return toISOStringIfDateOrTimestamp((v as any).toJSON());
+      }
+      // If it has a valueOf that returns a primitive
+      if (typeof (v as any).valueOf === 'function') {
+        const prim = (v as any).valueOf();
+        if (prim !== v) return toISOStringIfDateOrTimestamp(prim);
+      }
+    } catch (e) {
+      // ignore and fall through
+    }
+  }
+
+  // Try to coerce strings or other primitive types
+  try {
+    const s = String(v).trim();
+    if (s === '') return null;
+
+    // Pure numeric string -> treat as ms since epoch
+    if (/^\d+$/.test(s)) {
+      const n = Number(s);
+      if (isFinite(n)) {
+        const d = new Date(n);
+        if (!isNaN(d.getTime())) return d.toISOString();
+      }
+    }
+
+    // Try Date.parse on the string (handles ISO and many formats)
+    const parsed = Date.parse(s);
+    if (!isNaN(parsed)) return new Date(parsed).toISOString();
+  } catch (e) {
+    // ignore and return null below
+  }
+
+  return null;
+}
+
+function normalizeProjectObject(p: any) {
+  if (!p) return p;
+  const copy: any = { ...p };
+  if (copy.timeline) {
+    copy.timeline = { ...copy.timeline };
+    // preserve raw values for debugging
+    const rawStart = copy.timeline.startDate;
+    const rawEnd = copy.timeline.endDate;
+    const isoStart = toISOStringIfDateOrTimestamp(rawStart);
+    const isoEnd = toISOStringIfDateOrTimestamp(rawEnd);
+    // If normalization fails we'll silently fall back to null values
+    copy.timeline.startDate = isoStart;
+    copy.timeline.endDate = isoEnd;
+  }
+  if (!copy.location) copy.location = { address: null, coordinates: null };
+  copy.createdAt = toISOStringIfDateOrTimestamp(copy.createdAt) || copy.createdAt;
+  copy.updatedAt = toISOStringIfDateOrTimestamp(copy.updatedAt) || copy.updatedAt;
+  return copy;
+}
+
 const projectResolver = {
   // Field-level resolvers for Project type
   Project: {
@@ -64,8 +153,29 @@ const projectResolver = {
     myProjects: async (_: any, __: any, ctx: any): Promise<ProjectGQL[]> => {
       const { userId } = requireAuth(ctx);
       const { projectService } = ctx;
-      const projects = await projectService.getMyProjects(userId);
-      return projects as ProjectGQL[];
+      const projects = (await projectService.getMyProjects(userId)) as any[];
+
+      // Normalizar timeline dates a ISO strings, asegurar location y normalizar created/updated
+      const normalized = projects.map((p) => {
+        const copy: any = { ...p };
+        if (copy.timeline) {
+          copy.timeline = { ...copy.timeline };
+          copy.timeline.startDate = toISOStringIfDateOrTimestamp(copy.timeline.startDate);
+          copy.timeline.endDate = toISOStringIfDateOrTimestamp(copy.timeline.endDate);
+        }
+        // Asegurar location existe y tiene address/coordinates
+        if (!copy.location) {
+          copy.location = { address: null, coordinates: null };
+        }
+
+        // Normalizar createdAt / updatedAt a ISO
+        copy.createdAt = toISOStringIfDateOrTimestamp(copy.createdAt) || copy.createdAt;
+        copy.updatedAt = toISOStringIfDateOrTimestamp(copy.updatedAt) || copy.updatedAt;
+
+        return copy;
+      });
+
+      return normalized as ProjectGQL[];
     },
 
     // Obtener un proyecto por ID (verificando acceso)
@@ -73,7 +183,7 @@ const projectResolver = {
       const { userId } = requireAuth(ctx);
       const { projectService } = ctx;
       const project = await projectService.getProjectById(id, userId);
-      return project as ProjectGQL;
+      return (project ? normalizeProjectObject(project) : null) as ProjectGQL;
     },
   },
 
@@ -135,7 +245,7 @@ const projectResolver = {
       };
 
       const project = await projectService.createProject(dto, userId);
-      return project as ProjectGQL;
+      return normalizeProjectObject(project) as ProjectGQL;
     },
 
     // Actualizar proyecto (solo owner)
@@ -195,7 +305,7 @@ const projectResolver = {
       };
 
       const project = await projectService.updateProject(id, dto, userId);
-      return project as ProjectGQL;
+      return normalizeProjectObject(project) as ProjectGQL;
     },
 
     // Eliminar proyecto (solo owner)
@@ -238,7 +348,7 @@ const projectResolver = {
       const dto: AddTeamMemberDTO = parsed;
 
       const project = await projectService.addTeamMember(projectId, dto, userId);
-      return project as ProjectGQL;
+      return normalizeProjectObject(project) as ProjectGQL;
     },
 
     // Quitar miembro del equipo (solo owner, no puede quitar al owner)
@@ -250,7 +360,7 @@ const projectResolver = {
       const { userId: requesterId } = requireAuth(ctx);
       const { projectService } = ctx;
       const project = await projectService.removeTeamMember(projectId, userId, requesterId);
-      return project as ProjectGQL;
+      return normalizeProjectObject(project) as ProjectGQL;
     },
   },
 };

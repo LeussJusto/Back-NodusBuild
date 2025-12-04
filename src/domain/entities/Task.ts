@@ -20,6 +20,13 @@ export interface ChecklistItem {
   title: string;
   completed: boolean;
 }
+// Comentario en una tarea
+export interface TaskComment {
+  id?: string;
+  commenter: string; // user id
+  text: string;
+  createdAt: Date;
+}
 //Entidad Task
 export interface Task {
   id: string;
@@ -34,6 +41,8 @@ export interface Task {
   priority: TaskPriority;
   checklist: ChecklistItem[];
   dependencies: string[]; 
+  attachments: string[];
+  comments: TaskComment[];
   ppcWeek?: number;
   createdAt: Date;
   updatedAt: Date;

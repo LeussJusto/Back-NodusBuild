@@ -25,6 +25,18 @@ const typeDefs = gql`
     completed: Boolean!
   }
 
+  type Comment {
+    id: ID!
+    commenter: User!
+    text: String!
+    createdAt: String!
+  }
+
+  input CommentInput {
+    commenter: ID!
+    text: String!
+  }
+
   input ChecklistItemInput {
     title: String!
     completed: Boolean!
@@ -43,6 +55,8 @@ const typeDefs = gql`
     priority: TaskPriority!
     checklist: [ChecklistItem!]!
     dependencies: [Task!]!
+    attachments: [String!]!
+    comments: [Comment!]!
     ppcWeek: Int
     createdAt: String
     updatedAt: String
@@ -58,6 +72,8 @@ const typeDefs = gql`
     priority: TaskPriority
     checklist: [ChecklistItemInput!]
     dependencies: [ID!]
+    attachments: [String!]
+    comments: [CommentInput!]
     ppcWeek: Int
   }
 
@@ -71,18 +87,25 @@ const typeDefs = gql`
     priority: TaskPriority
     checklist: [ChecklistItemInput!]
     dependencies: [ID!]
+    attachments: [String!]
+    comments: [CommentInput!]
     ppcWeek: Int
   }
 
   extend type Query {
     task(id: ID!): Task
     tasksByProject(projectId: ID!): [Task!]!
+    tasks: [Task!]!
   }
 
   extend type Mutation {
     createTask(input: CreateTaskInput!): Task!
     updateTask(id: ID!, input: UpdateTaskInput!): Task!
     deleteTask(id: ID!): Boolean!
+    addTaskComment(taskId: ID!, text: String!): Task!
+    uploadTaskFile(taskId: ID!, file: Upload!): Task!
+    editTaskComment(taskId: ID!, commentId: ID!, text: String!): Task!
+    deleteTaskComment(taskId: ID!, commentId: ID!): Task!
   }
 `;
 

@@ -29,10 +29,12 @@ export interface ReportGQL {
 
 export interface CreateDailyInputGQL {
   project: string;
+  taskId?: string;
   date?: string;
   content?: string;
   checklist?: ReportChecklistItemGQL[];
   attachments?: string[];
+  attachmentsFiles?: any[];
 }
 
 export interface CreateGeneralInputGQL {

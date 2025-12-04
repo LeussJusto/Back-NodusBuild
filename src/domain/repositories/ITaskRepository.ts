@@ -13,6 +13,8 @@ export interface CreateTaskPayload {
   priority: TaskPriority;
   checklist: ChecklistItem[];
   dependencies: string[];
+  attachments?: string[];
+  comments?: { commenter: string; text: string }[];
   ppcWeek?: number;
 }
 
@@ -27,6 +29,8 @@ export interface UpdateTaskPayload {
   priority?: TaskPriority;
   checklist?: ChecklistItem[];
   dependencies?: string[];
+  attachments?: string[];
+  comments?: { commenter: string; text: string }[];
   ppcWeek?: number;
 }
 
@@ -36,6 +40,10 @@ export interface ITaskRepository {
   findById(id: string): Promise<Task | null>;
   findByProject(projectId: string): Promise<Task[]>;
   update(id: string, payload: UpdateTaskPayload): Promise<Task | null>;
+  addComment(id: string, commenter: string, text: string): Promise<Task | null>;
+  editComment(id: string, commentId: string, text: string): Promise<Task | null>;
+  deleteComment(id: string, commentId: string): Promise<Task | null>;
+  addAttachment(id: string, url: string): Promise<Task | null>;
   delete(id: string): Promise<boolean>;
 }
 
