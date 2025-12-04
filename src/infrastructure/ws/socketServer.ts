@@ -5,6 +5,9 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import { chatService, messageService } from '../container';
 
+// Control to enable verbose WS logs. Set SOCKET_VERBOSE=true to see WS logs.
+const WS_VERBOSE = (process.env.SOCKET_VERBOSE || 'false').toLowerCase() === 'true';
+
 export function initSocketServer(httpServer: http.Server) {
   const io = new SocketIOServer(httpServer, {
     cors: {
@@ -27,7 +30,7 @@ export function initSocketServer(httpServer: http.Server) {
       const tokenFromQuery = (socket.handshake.query && (socket.handshake.query as any).token) || null;
       const token = tokenFromAuth || tokenFromQuery || tokenFromHeader;
       if (!token) {
-        console.warn('[WS] auth failed — no token provided for socket', socket.id);
+        if (WS_VERBOSE) console.warn('[WS] auth failed — no token provided for socket', socket.id);
         return next(new Error('Authentication error'));
       }
       const secret = process.env.JWT_SECRET || 'changeme';
@@ -35,35 +38,36 @@ export function initSocketServer(httpServer: http.Server) {
       // store user id in socket.data for handlers
       socket.data.userId = payload.sub || payload.id || payload.userId || null;
       if (!socket.data.userId) {
-        console.warn('[WS] auth failed — token has no user id', socket.id);
+        if (WS_VERBOSE) console.warn('[WS] auth failed — token has no user id', socket.id);
         return next(new Error('Authentication error'));
       }
       return next();
     } catch (err) {
-      console.warn('[WS] auth error', err && (err as Error).message);
+      if (WS_VERBOSE) console.warn('[WS] auth error', err && (err as Error).message);
       return next(new Error('Authentication error'));
     }
   });
 
   io.on('connection', (socket) => {
-    console.log('[WS] client connected', socket.id);
+    if (WS_VERBOSE) console.log('[WS] client connected', socket.id);
 
     socket.on('join', (data: any) => {
       const room = data?.room || data;
       if (!room) return;
       socket.join(room);
-      console.log(`[WS] ${socket.id} joined room ${room}`);
+      if (WS_VERBOSE) console.log(`[WS] ${socket.id} joined room ${room}`);
     });
 
     socket.on('leave', (data: any) => {
       const room = data?.room || data;
       if (!room) return;
       socket.leave(room);
-      console.log(`[WS] ${socket.id} left room ${room}`);
+      if (WS_VERBOSE) console.log(`[WS] ${socket.id} left room ${room}`);
     });
 
     socket.on('message:send', async (msg: any) => {
       // msg: { room (chatId), content, attachments?, type?, tempId }
+      if (WS_VERBOSE) console.log('[WS] message:send received', { socketId: socket.id, userId: socket.data?.userId, payload: msg });
       try {
         if (!msg || !msg.room) {
           socket.emit('message:error', { error: 'room is required' });
@@ -86,6 +90,7 @@ export function initSocketServer(httpServer: http.Server) {
         }
 
         // Persist message first (durable strategy)
+        if (WS_VERBOSE) console.log('[WS] persisting message for chat', msg.room, 'from', userId);
         const created = await messageService.createMessage({
           chatId: msg.room,
           from: userId,
@@ -93,6 +98,13 @@ export function initSocketServer(httpServer: http.Server) {
           attachments: msg.attachments || [],
           type: msg.type || 'text',
         });
+
+        // Log the full created object for debugging (stringify to avoid circular issues)
+        try {
+          if (WS_VERBOSE) console.log('[WS] message persisted', JSON.stringify(created));
+        } catch (jsonErr) {
+          if (WS_VERBOSE) console.log('[WS] message persisted (inspect)', created);
+        }
 
         // Emit to room with persisted message
         io.to(msg.room).emit('message:new', created);
@@ -106,7 +118,7 @@ export function initSocketServer(httpServer: http.Server) {
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('[WS] client disconnected', socket.id, reason);
+      if (WS_VERBOSE) console.log('[WS] client disconnected', socket.id, reason);
     });
   });
 
