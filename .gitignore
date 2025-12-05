@@ -39,7 +39,6 @@ coverage/
 *.tmp
 *.temp
 .cache/
-/uploads
 
 # OS files
 Thumbs.db
